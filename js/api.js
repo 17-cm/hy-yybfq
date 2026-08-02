@@ -1,28 +1,43 @@
 /**
  * api.js - 音乐播放器网络请求模块
- * 版本: 1.0.7
+ * 版本: 1.0.8
  * 作者: hy.禾一
- * 说明：所有接口URL已完整拼接，修改只需改下方 `BASE_URL` 的值
+ * 说明：按作者文档格式，所有接口统一管理
  */
 
 // ============================================================
-// 接口基础配置（统一管理，修改只需改这里）
+// 接口基础配置
 // ============================================================
 
 const BASE_URL = 'https://nextmusic.toubiec.cn';
 
 // ============================================================
-// 完整接口地址（已直接拼接好）
+// 完整接口地址
 // ============================================================
 
 const API_URLS = {
-    songUrl: BASE_URL + '/api/getSongUrl',
+    // 单曲解析：POST /song  { url, level, type }
+    song: BASE_URL + '/song',
+    
+    // 歌曲信息：POST /api/getSongInfo  { url }
     songInfo: BASE_URL + '/api/getSongInfo',
+    
+    // 歌词：POST /api/getSongLyric  { url }
     lyric: BASE_URL + '/api/getSongLyric',
+    
+    // 歌单解析：POST /api/playlist_trackall  { id }
     playlist: BASE_URL + '/api/playlist_trackall',
+    
+    // 搜索：POST /api/search  { keyword, limit }
     search: BASE_URL + '/api/search',
+    
+    // 专辑：POST /api/getAlbum  { id }
     album: BASE_URL + '/api/getAlbum',
+    
+    // 歌曲百科：POST /api/song/wiki  { url }
     songWiki: BASE_URL + '/api/song/wiki',
+    
+    // 健康检查：GET /health
     health: BASE_URL + '/health'
 };
 
@@ -31,32 +46,31 @@ const API_URLS = {
 // ============================================================
 
 function extractNeteaseId(link) {
-    // 如果传入的已经是纯数字，直接返回
-    if (/^\d+$/.test(link)) {
-        return link;
-    }
-    // 从链接中提取 id=xxx
+    if (/^\d+$/.test(link)) return link;
     const idMatch = link.match(/id=(\d+)/);
     if (idMatch) return idMatch[1];
-    // 从链接中提取 /song/xxx
     const pathMatch = link.match(/song\/(\d+)/);
     if (pathMatch) return pathMatch[1];
     return null;
 }
 
 // ============================================================
-// 1. 刷新播放链接
+// 1. 刷新播放链接（单曲解析）
 // ============================================================
 
-async function refreshSongUrl(neteaseId, quality = 'exhigh') {
+async function refreshSongUrl(neteaseId, quality = 'lossless') {
     try {
-        // 确保传入的是纯数字ID
         const id = extractNeteaseId(neteaseId) || neteaseId;
-        
-        const response = await fetch(API_URLS.songUrl, {
+        const url = `https://music.163.com/song?id=${id}`;
+
+        const response = await fetch(API_URLS.song, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id, level: quality })
+            body: JSON.stringify({
+                url: url,
+                level: quality,
+                type: 'json'
+            })
         });
 
         if (!response.ok) {
@@ -85,19 +99,19 @@ async function refreshSongUrl(neteaseId, quality = 'exhigh') {
 // 2. 获取歌曲信息 + 播放链接 + 歌词
 // ============================================================
 
-async function fetchNeteaseSongInfo(link, quality = 'exhigh') {
+async function fetchNeteaseSongInfo(link, quality = 'lossless') {
     try {
-        // 提取纯数字ID
         const id = extractNeteaseId(link);
         if (!id) {
             throw new Error('无法提取歌曲ID');
         }
+        const fullUrl = `https://music.163.com/song?id=${id}`;
 
         // 获取歌曲信息
         const infoResponse = await fetch(API_URLS.songInfo, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id })
+            body: JSON.stringify({ url: fullUrl })
         });
 
         if (!infoResponse.ok) {
@@ -112,11 +126,15 @@ async function fetchNeteaseSongInfo(link, quality = 'exhigh') {
 
         const songInfo = infoData.data || {};
 
-        // 获取播放链接
-        const urlResponse = await fetch(API_URLS.songUrl, {
+        // 获取播放链接（用 /song 接口）
+        const urlResponse = await fetch(API_URLS.song, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id, level: quality })
+            body: JSON.stringify({
+                url: fullUrl,
+                level: quality,
+                type: 'json'
+            })
         });
 
         if (!urlResponse.ok) {
@@ -134,13 +152,13 @@ async function fetchNeteaseSongInfo(link, quality = 'exhigh') {
             throw new Error('无法获取播放链接');
         }
 
-        // 获取歌词（失败不影响主流程）
+        // 获取歌词
         let lyrics = '';
         try {
             const lyricResponse = await fetch(API_URLS.lyric, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id })
+                body: JSON.stringify({ url: fullUrl })
             });
 
             if (lyricResponse.ok) {
@@ -174,7 +192,6 @@ async function fetchNeteaseSongInfo(link, quality = 'exhigh') {
 
 async function fetchNeteasePlaylist(link) {
     try {
-        // 提取歌单ID
         let playlistId = link;
         if (!/^\d+$/.test(link)) {
             const idMatch = link.match(/id=(\d+)/);
@@ -227,7 +244,7 @@ async function fetchNeteasePlaylist(link) {
 }
 
 // ============================================================
-// 4. 工具函数：判断链接类型
+// 4. 工具函数
 // ============================================================
 
 function isNeteaseLink(url) {
