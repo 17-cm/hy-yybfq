@@ -1,6 +1,6 @@
 /**
  * api.js - 音乐播放器网络请求模块
- * 版本: Final (纯前端扩展版：严格补齐官方 API 必填参数)
+ * 版本: 8.0 (返璞归真版：去除一切干扰，修复状态码误判)
  * 作者: hy.禾一
  */
 
@@ -14,29 +14,34 @@ const API_URLS = {
 };
 
 // ==========================================
-// 纯净网络请求器：老老实实“填表”
+// 提取纯数字 (剥离一切网址，防止防火墙拦截)
+// ==========================================
+function extractNeteaseId(link) {
+    if (!link) return null;
+    const strLink = String(link).trim();
+    // 短链接直接在 UI 拦截，不发给服务器受气
+    if (strLink.includes('163cn.tv')) return null; 
+    
+    if (/^\d+$/.test(strLink)) return strLink;
+    const match = strLink.match(/id=(\d+)/) || strLink.match(/song\/(\d+)/);
+    return match ? match[1] : null; 
+}
+
+// ==========================================
+// 极简请求器 (多一个参数都不带！)
 // ==========================================
 async function requestApi(url, payload) {
-    // 严格遵循作者网页版的格式，补齐必填项，避免 400 错误
-    const finalPayload = {
-        ...payload,
-        timestamp: Date.now(), // 官方要求的必填项：当前时间戳，防止缓存
-        ip: ""                 // 补齐字段结构，留空即可，代表使用默认IP
-    };
-
     const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalPayload)
+        body: JSON.stringify(payload) // 严格按照文档，只有 id 和 level
     });
 
-    if (!response.ok) {
-        throw new Error(`请求失败，状态码: ${response.status}`);
-    }
-
+    if (!response.ok) throw new Error(`HTTP 错误: ${response.status}`);
+    
     const data = await response.json();
     
-    // 兼容项目的标准返回格式
+    // 💡 乌龙案破解核心：兼容 code=200 的网易云标准返回
     if (data.status !== 200 && data.code !== 200 && data.success !== true) {
         throw new Error(data.message || 'API返回异常');
     }
@@ -44,16 +49,17 @@ async function requestApi(url, payload) {
 }
 
 // ==========================================
-// 1. 获取播放链接
+// 1. 刷新播放链接
 // ==========================================
 async function refreshSongUrl(link, quality = 'standard') {
     try {
-        const reqId = String(link).trim();
+        const reqId = extractNeteaseId(link);
+        if (!reqId) return null;
+
         const data = await requestApi(API_URLS.songUrl, { id: reqId, level: quality });
-        const url = data.data?.url || (Array.isArray(data.data) && data.data[0]?.url);
-        return url || null;
+        return data.data?.url || (Array.isArray(data.data) && data.data[0]?.url) || null;
     } catch (e) {
-        console.error('获取播放链接失败:', e);
+        console.error('刷新链接失败:', e);
         return null;
     }
 }
@@ -63,10 +69,10 @@ async function refreshSongUrl(link, quality = 'standard') {
 // ==========================================
 async function fetchNeteaseSongInfo(link, quality = 'standard') {
     try {
-        if (!link) throw new Error('请输入链接或ID');
-        
-        // 作者的 API 支持直接解析短链接，原样发送即可
-        const reqId = String(link).trim();
+        const reqId = extractNeteaseId(link);
+        if (!reqId) {
+            throw new Error('新接口不支持短链接，请使用长链接或纯数字ID！');
+        }
 
         // 1. 获取歌曲详情
         const infoData = await requestApi(API_URLS.songInfo, { id: reqId });
@@ -77,20 +83,16 @@ async function fetchNeteaseSongInfo(link, quality = 'standard') {
         try {
             const urlData = await requestApi(API_URLS.songUrl, { id: reqId, level: quality });
             playUrl = urlData.data?.url || (Array.isArray(urlData.data) && urlData.data[0]?.url) || '';
-        } catch (e) {
-            console.warn('播放链接获取失败', e);
-        }
-        
-        if (!playUrl) throw new Error('未获取到有效音频流');
+        } catch (e) { console.warn('播放链接获取失败', e); }
+
+        if (!playUrl) throw new Error('未获取到音频流');
 
         // 3. 获取歌词
         let lyrics = '';
         try {
             const lyricData = await requestApi(API_URLS.lyric, { id: reqId });
             lyrics = lyricData.data?.lyric || lyricData.lrc?.lyric || '';
-        } catch (e) { 
-            console.log('歌词暂无'); 
-        }
+        } catch (e) { console.log('歌词暂无'); }
 
         return {
             title: songInfo.name || '未知歌曲',
@@ -102,7 +104,7 @@ async function fetchNeteaseSongInfo(link, quality = 'standard') {
             neteaseId: reqId
         };
     } catch (error) {
-        console.error('解析失败:', error);
+        console.error('网易云解析失败:', error);
         throw error;
     }
 }
@@ -112,13 +114,15 @@ async function fetchNeteaseSongInfo(link, quality = 'standard') {
 // ==========================================
 async function fetchNeteasePlaylist(link, limit = 100, offset = 0) {
     try {
-        if (!link) throw new Error('请输入链接或ID');
-        const reqId = String(link).trim();
+        const reqId = extractNeteaseId(link);
+        if (!reqId) {
+            throw new Error('新接口不支持短链接，请使用长链接或纯数字ID！');
+        }
 
         const data = await requestApi(API_URLS.playlist, { id: reqId, limit, offset });
         const playlist = data.data?.playlist || data.playlist || {};
         
-        if (!playlist.tracks || playlist.tracks.length === 0) throw new Error('歌单数据为空');
+        if (!playlist.tracks || playlist.tracks.length === 0) throw new Error('歌单为空');
 
         return {
             name: playlist.name || '未知歌单',
@@ -141,11 +145,20 @@ async function fetchNeteasePlaylist(link, limit = 100, offset = 0) {
 }
 
 // ==========================================
-// 工具函数：完全信任接口的解析能力，不拦截任何格式
+// 工具函数 
 // ==========================================
-function isNeteaseLink(url) { return !!url; }
-function isPlaylistLink(url) { return !!url; }
-function extractNeteaseId(link) { return link ? String(link).trim() : null; }
+function isNeteaseLink(url) {
+    const str = String(url).trim();
+    // 短链接直接返回 false 拦截
+    if (str.includes('163cn.tv')) return false;
+    return /^\d+$/.test(str) || str.includes('163');
+}
+
+function isPlaylistLink(url) {
+    const str = String(url).trim();
+    if (str.includes('163cn.tv')) return false;
+    return /^\d+$/.test(str) || url.includes('playlist');
+}
 
 window.refreshSongUrl = refreshSongUrl;
 window.fetchNeteaseSongInfo = fetchNeteaseSongInfo;
