@@ -1,150 +1,199 @@
 /**
  * api.js - 音乐播放器网络请求模块
- * 版本: 2.5 (真相大白版：伪装成官方完整链接发送)
+ * 版本: 3.0 (原汁原味复刻版：完全依照原 player.js 逻辑)
  * 作者: hy.禾一 / Code Reviewer
  */
 
 const BASE_URL = 'https://nextmusic.toubiec.cn';
 
 const API_URLS = {
-    songUrl: BASE_URL + '/api/getSongUrl',         // 主接口
-    backupUrl: BASE_URL + '/api/getMusicUrl',      // 备用兜底接口
+    songUrl: BASE_URL + '/api/getSongUrl',
     songInfo: BASE_URL + '/api/getSongInfo',
     lyric: BASE_URL + '/api/getSongLyric',
     playlist: BASE_URL + '/api/playlist_trackall'
 };
 
-// ==========================================
-// 核心机密：将纯数字自动包装成服务器要求的完整链接
-// ==========================================
-function wrapSongId(input) {
-    const str = String(input).trim();
-    // 如果是纯数字，强制包装成完整歌曲链接
-    if (/^\d+$/.test(str)) return `https://music.163.com/song?id=${str}`;
-    return str; // 如果已经是链接，直接原样发送
+// ============================================================
+// 工具函数 (完全还原旧版判断逻辑)
+// ============================================================
+function isNeteaseLink(url) {
+    return url.includes('music.163.com') || 
+           url.includes('163cn.tv') || 
+           url.includes('y.music.163.com') ||
+           /^\d+$/.test(String(url).trim()); // 兼容纯数字
 }
 
-function wrapPlaylistId(input) {
-    const str = String(input).trim();
-    // 如果是纯数字，强制包装成完整歌单链接
-    if (/^\d+$/.test(str)) return `https://music.163.com/playlist?id=${str}`;
+function isPlaylistLink(url) {
+    return url.includes('playlist') || 
+           url.includes('playlist?id=') ||
+           /^\d+$/.test(String(url).trim()); // 兼容纯数字
+}
+
+function extractNeteaseId(link) {
+    if (!link) return null;
+    const strLink = String(link).trim();
+    if (/^\d+$/.test(strLink)) return strLink;
+    const idMatch = strLink.match(/id=(\d+)/);
+    if (idMatch) return idMatch[1];
+    const pathMatch = strLink.match(/song\/(\d+)/);
+    if (pathMatch) return pathMatch[1];
+    return null;
+}
+
+// ============================================================
+// 核心补丁：因为新接口不支持短链，这里做个前置转换
+// ============================================================
+async function resolveLink(link, isPlaylist = false) {
+    let str = String(link).trim();
+    
+    // 如果是短链接，还原出真实 ID
+    if (str.includes('163cn.tv')) {
+        try {
+            const res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(str)}`);
+            const text = await res.text();
+            const match = text.match(/id=(\d+)/) || res.url.match(/id=(\d+)/);
+            if (match) str = match[1];
+        } catch (e) {
+            console.error('短链解析失败:', e);
+        }
+    }
+    
+    // 如果拿到的是纯数字，按照旧版 player.js 的习惯，包装成完整网址发给服务器
+    if (/^\d+$/.test(str)) {
+        if (isPlaylist) {
+            return `music.163.com/playlist?id=${str}`;
+        } else {
+            return `music.163.com/song?id=${str}`;
+        }
+    }
     return str;
 }
 
-// ==========================================
-// 统一请求器
-// ==========================================
-async function requestApi(url, payload) {
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) throw new Error(`请求失败: HTTP ${response.status}`);
-    const data = await response.json();
-    
-    if (data.status !== 200 && data.code !== 200 && data.success !== true) {
-        throw new Error(data.message || 'API返回错误');
-    }
-    return data;
-}
-
-// ==========================================
-// 双保险：获取播放链接
-// ==========================================
-async function fetchPlayUrlWithFallback(reqUrl, quality) {
-    let lastErrorMsg = "";
+// ============================================================
+// 1. 刷新播放链接 (还原 player.js 原逻辑)
+// ============================================================
+async function refreshSongUrl(neteaseId) {
     try {
-        const data1 = await requestApi(API_URLS.songUrl, { id: reqUrl, level: quality });
-        if (data1.data?.url) return data1.data.url;
-    } catch (e) {
-        console.warn('⚠️ 主接口获取失败，切换备用接口...', e.message);
-        lastErrorMsg = e.message;
-    }
-
-    try {
-        const data2 = await requestApi(API_URLS.backupUrl, { id: reqUrl, level: quality });
-        if (data2.data?.url) return data2.data.url;
-    } catch (e) {
-        console.warn('❌ 备用接口也失败了...', e.message);
-    }
-    throw new Error('主/备接口均无法获取播放链接。' + lastErrorMsg);
-}
-
-// ==========================================
-// 1. 刷新播放链接
-// ==========================================
-async function refreshSongUrl(link, quality = 'lossless') {
-    try {
-        const reqUrl = wrapSongId(link);
-        return await fetchPlayUrlWithFallback(reqUrl, quality);
-    } catch (e) {
-        console.error('刷新播放链接失败:', e);
+        const targetId = `music.163.com/song?id=${neteaseId}`;
+        
+        const urlResponse = await fetch(API_URLS.songUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                id: targetId, 
+                level: 'lossless' 
+            })
+        });
+        
+        if (!urlResponse.ok) throw new Error('获取播放链接失败');
+        const urlData = await urlResponse.json();
+        
+        let playUrl = '';
+        if (urlData.data && urlData.data.url) {
+            playUrl = urlData.data.url;
+        }
+        return playUrl;
+    } catch (error) {
+        console.error('刷新链接失败:', error);
         return null;
     }
 }
 
-// ==========================================
-// 2. 获取歌曲信息 + 播放链接 + 歌词
-// ==========================================
-async function fetchNeteaseSongInfo(link, quality = 'lossless') {
+// ============================================================
+// 2. 获取歌曲信息 (完全复刻 player.js 的三步走顺序)
+// ============================================================
+async function fetchNeteaseSongInfo(link) {
     try {
-        if (!link) throw new Error('请输入歌曲链接或ID');
+        const finalLink = await resolveLink(link, false);
 
-        // 关键步骤：把输入包装成服务器看得懂的长链接
-        const reqUrl = wrapSongId(link);
+        // 第 1 步：获取详情
+        const detailResponse = await fetch(API_URLS.songInfo, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: finalLink })
+        });
+        if (!detailResponse.ok) throw new Error('获取歌曲信息失败');
+        const detailData = await detailResponse.json();
+        const songInfo = detailData.data || {};
 
-        const infoData = await requestApi(API_URLS.songInfo, { id: reqUrl });
-        const songInfo = infoData.data || {};
+        // 第 2 步：获取 URL
+        const urlResponse = await fetch(API_URLS.songUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                id: finalLink, 
+                level: 'lossless'
+            })
+        });
+        if (!urlResponse.ok) throw new Error('获取播放链接失败');
+        const urlData = await urlResponse.json();
+        
+        let playUrl = '';
+        if (urlData.data && urlData.data.url) {
+            playUrl = urlData.data.url;
+        }
+        if (!playUrl) throw new Error('无法获取播放链接');
 
-        const playUrl = await fetchPlayUrlWithFallback(reqUrl, quality);
-
+        // 第 3 步：获取歌词
         let lyrics = '';
         try {
-            const lyricData = await requestApi(API_URLS.lyric, { id: reqUrl });
-            lyrics = lyricData.data?.lyric || '';
-        } catch (e) { 
-            console.log('歌词获取失败，跳过'); 
+            const lyricResponse = await fetch(API_URLS.lyric, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: finalLink })
+            });
+            if (lyricResponse.ok) {
+                const lyricData = await lyricResponse.json();
+                lyrics = lyricData.data?.lyric || '';
+            }
+        } catch (e) {
+            console.log('歌词获取失败，跳过');
         }
 
+        const neteaseId = extractNeteaseId(finalLink) || String(link).replace(/\D/g, '');
+
+        // 返回 UI 期待的格式 (兼容新旧字段)
         return {
             title: songInfo.name || '未知歌曲',
-            artist: songInfo.ar_name || songInfo.artist || '未知艺术家',
+            artist: songInfo.ar_name || songInfo.singer || songInfo.artist || '未知艺术家',
             url: playUrl,
             lyrics: lyrics,
-            cover: songInfo.pic || songInfo.picUrl || '',
+            cover: songInfo.pic || songInfo.picimg || songInfo.picUrl || '',
             duration: songInfo.duration || '0:00',
-            // 提取出纯数字供本地使用
-            neteaseId: String(link).match(/\d+/)?.[0] || link 
+            neteaseId: neteaseId
         };
+        
     } catch (error) {
         console.error('网易云解析失败:', error);
         throw error;
     }
 }
 
-// ==========================================
-// 3. 获取歌单
-// ==========================================
-async function fetchNeteasePlaylist(link, limit = 100, offset = 0) {
+// ============================================================
+// 3. 获取歌单 (还原 player.js 原逻辑)
+// ============================================================
+async function fetchNeteasePlaylist(link) {
     try {
-        if (!link) throw new Error('请输入歌单链接或ID');
+        const finalLink = await resolveLink(link, true);
 
-        // 关键步骤：把输入包装成服务器看得懂的长链接
-        const reqUrl = wrapPlaylistId(link);
-
-        const data = await requestApi(API_URLS.playlist, { id: reqUrl, limit, offset });
+        const response = await fetch(API_URLS.playlist, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: finalLink, limit: 100, offset: 0 })
+        });
+        
+        if (!response.ok) throw new Error('获取歌单失败');
+        const data = await response.json();
+        
         const playlist = data.data?.playlist || {};
-        if (!playlist.tracks || playlist.tracks.length === 0) throw new Error('歌单为空');
 
         return {
             name: playlist.name || '未知歌单',
             creator: playlist.creator || '未知创建者',
             description: playlist.description || '',
             coverImgUrl: playlist.coverImgUrl || '',
-            trackCount: playlist.trackCount || playlist.tracks.length,
-            tracks: playlist.tracks.map(track => ({
+            trackCount: playlist.trackCount || (playlist.tracks ? playlist.tracks.length : 0),
+            tracks: (playlist.tracks || []).map(track => ({
                 id: track.id,
                 name: track.name || '未知歌曲',
                 artists: track.artists || '未知艺术家',
@@ -158,34 +207,9 @@ async function fetchNeteasePlaylist(link, limit = 100, offset = 0) {
     }
 }
 
-// ==========================================
-// 工具函数 (兼容处理)
-// ==========================================
-function isNeteaseLink(url) {
-    const str = String(url).trim();
-    // 纯数字直接放行！
-    return /^\d+$/.test(str) || 
-           str.includes('music.163.com') || 
-           str.includes('163cn.tv') || 
-           str.includes('y.music.163.com');
-}
-
-function isPlaylistLink(url) {
-    const str = String(url).trim();
-    // 纯数字直接放行！
-    return /^\d+$/.test(str) || url.includes('playlist');
-}
-
-function extractNeteaseId(link) {
-    const strLink = String(link).trim();
-    if (/^\d+$/.test(strLink)) return strLink;
-    const match = strLink.match(/id=(\d+)/) || strLink.match(/song\/(\d+)/);
-    return match ? match[1] : link; 
-}
-
-// ==========================================
+// ============================================================
 // 暴露到全局
-// ==========================================
+// ============================================================
 window.refreshSongUrl = refreshSongUrl;
 window.fetchNeteaseSongInfo = fetchNeteaseSongInfo;
 window.fetchNeteasePlaylist = fetchNeteasePlaylist;
