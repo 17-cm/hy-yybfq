@@ -30,15 +30,17 @@ const API_URLS = {
 };
 
 // ============================================================
-// 工具：提取纯数字ID
+// 工具：提取纯数字ID (修复版：确保返回格式且更稳定)
 // ============================================================
 
 function extractNeteaseId(link) {
-    if (/^\d+$/.test(link)) return link;
-    const idMatch = link.match(/id=(\d+)/);
-    if (idMatch) return idMatch[1];
-    const pathMatch = link.match(/song\/(\d+)/);
-    if (pathMatch) return pathMatch[1];
+    if (!link) return null;
+    const strLink = String(link).trim();
+    if (/^\d+$/.test(strLink)) return Number(strLink);
+    const idMatch = strLink.match(/id=(\d+)/);
+    if (idMatch) return Number(idMatch[1]);
+    const pathMatch = strLink.match(/song\/(\d+)/);
+    if (pathMatch) return Number(pathMatch[1]);
     return null;
 }
 
@@ -54,7 +56,7 @@ async function refreshSongUrl(neteaseId, quality = 'lossless') {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                id: id,
+                id: Number(id), // 修复：强制转换数字，防止 400 报错
                 level: quality
             })
         });
@@ -65,7 +67,8 @@ async function refreshSongUrl(neteaseId, quality = 'lossless') {
 
         const data = await response.json();
 
-        if (data.status !== 200 || !data.success) {
+        // 修复：兼容多种接口返回格式
+        if (data.status !== 200 && data.code !== 200 && data.success !== true) {
             throw new Error(data.message || '获取播放链接失败');
         }
 
@@ -96,7 +99,7 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
         const infoResponse = await fetch(API_URLS.songInfo, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id })
+            body: JSON.stringify({ id: Number(id) }) // 修复：强制转换数字
         });
 
         if (!infoResponse.ok) {
@@ -105,7 +108,8 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
 
         const infoData = await infoResponse.json();
 
-        if (infoData.status !== 200 || !infoData.success) {
+        // 修复：兼容多种接口返回格式
+        if (infoData.status !== 200 && infoData.code !== 200 && infoData.success !== true) {
             throw new Error(infoData.message || '获取歌曲信息失败');
         }
 
@@ -116,7 +120,7 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                id: id,
+                id: Number(id), // 修复：强制转换数字
                 level: quality
             })
         });
@@ -127,7 +131,7 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
 
         const urlData = await urlResponse.json();
 
-        if (urlData.status !== 200 || !urlData.success) {
+        if (urlData.status !== 200 && urlData.code !== 200 && urlData.success !== true) {
             throw new Error(urlData.message || '获取播放链接失败');
         }
 
@@ -142,12 +146,12 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
             const lyricResponse = await fetch(API_URLS.lyric, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id })
+                body: JSON.stringify({ id: Number(id) }) // 修复：强制转换数字
             });
 
             if (lyricResponse.ok) {
                 const lyricData = await lyricResponse.json();
-                if (lyricData.status === 200 && lyricData.success) {
+                if ((lyricData.status === 200 || lyricData.code === 200 || lyricData.success === true)) {
                     lyrics = lyricData.data?.lyric || '';
                 }
             }
@@ -177,20 +181,23 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
 async function fetchNeteasePlaylist(link, limit = 100, offset = 0) {
     try {
         let playlistId = link;
-        if (!/^\d+$/.test(link)) {
-            const idMatch = link.match(/id=(\d+)/);
+        const strLink = String(link).trim(); // 确保以字符串处理并去空格
+        if (!/^\d+$/.test(strLink)) {
+            const idMatch = strLink.match(/id=(\d+)/);
             if (idMatch) {
                 playlistId = idMatch[1];
             } else {
                 throw new Error('无法提取歌单ID');
             }
+        } else {
+            playlistId = strLink;
         }
 
         const response = await fetch(API_URLS.playlist, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                id: playlistId,
+                id: Number(playlistId), // 修复：强制转换数字，彻底解决 400 报错
                 limit: limit,
                 offset: offset
             })
@@ -202,7 +209,8 @@ async function fetchNeteasePlaylist(link, limit = 100, offset = 0) {
 
         const data = await response.json();
 
-        if (data.status !== 200 || !data.success) {
+        // 修复：兼容多种接口返回格式
+        if (data.status !== 200 && data.code !== 200 && data.success !== true) {
             throw new Error(data.message || '获取歌单失败');
         }
 
