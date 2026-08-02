@@ -1,8 +1,8 @@
 /**
  * api.js - 音乐播放器网络请求模块
- * 版本: 1.0.8
+ * 版本: 1.0.6
  * 作者: hy.禾一
- * 说明：按作者文档格式，所有接口统一管理
+ * 说明：按作者最新接口文档，所有接口统一管理
  */
 
 // ============================================================
@@ -12,33 +12,33 @@
 const BASE_URL = 'https://nextmusic.toubiec.cn';
 
 // ============================================================
-// 完整接口地址
+// 完整接口地址（按最新文档）
 // ============================================================
 
 const API_URLS = {
-    // 单曲解析：POST /song  { url, level, type }
-    song: BASE_URL + '/song',
+    // 播放链接：POST /api/getSongUrl  { id, level }
+    songUrl: BASE_URL + '/api/getSongUrl',
     
-    // 歌曲信息：POST /api/getSongInfo  { url }
+    // 歌曲信息：POST /api/getSongInfo  { id }
     songInfo: BASE_URL + '/api/getSongInfo',
     
-    // 歌词：POST /api/getSongLyric  { url }
+    // 歌词：POST /api/getSongLyric  { id }
     lyric: BASE_URL + '/api/getSongLyric',
     
-    // 歌单解析：POST /api/playlist_trackall  { id }
+    // 歌单全部歌曲：POST /api/playlist_trackall  { id, limit, offset }
     playlist: BASE_URL + '/api/playlist_trackall',
     
-    // 搜索：POST /api/search  { keyword, limit }
+    // 搜索：POST /api/search  { keyword, type, limit, offset }
     search: BASE_URL + '/api/search',
     
     // 专辑：POST /api/getAlbum  { id }
     album: BASE_URL + '/api/getAlbum',
     
-    // 歌曲百科：POST /api/song/wiki  { url }
+    // 歌曲百科：POST /api/song/wiki  { id }
     songWiki: BASE_URL + '/api/song/wiki',
     
-    // 健康检查：GET /health
-    health: BASE_URL + '/health'
+    // 健康检查：GET /api/topen
+    health: BASE_URL + '/api/topen'
 };
 
 // ============================================================
@@ -55,21 +55,19 @@ function extractNeteaseId(link) {
 }
 
 // ============================================================
-// 1. 刷新播放链接（单曲解析）
+// 1. 刷新播放链接
 // ============================================================
 
 async function refreshSongUrl(neteaseId, quality = 'lossless') {
     try {
         const id = extractNeteaseId(neteaseId) || neteaseId;
-        const url = `https://music.163.com/song?id=${id}`;
 
-        const response = await fetch(API_URLS.song, {
+        const response = await fetch(API_URLS.songUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                url: url,
-                level: quality,
-                type: 'json'
+                id: id,
+                level: quality
             })
         });
 
@@ -105,13 +103,12 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
         if (!id) {
             throw new Error('无法提取歌曲ID');
         }
-        const fullUrl = `https://music.163.com/song?id=${id}`;
 
         // 获取歌曲信息
         const infoResponse = await fetch(API_URLS.songInfo, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: fullUrl })
+            body: JSON.stringify({ id: id })
         });
 
         if (!infoResponse.ok) {
@@ -126,14 +123,13 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
 
         const songInfo = infoData.data || {};
 
-        // 获取播放链接（用 /song 接口）
-        const urlResponse = await fetch(API_URLS.song, {
+        // 获取播放链接
+        const urlResponse = await fetch(API_URLS.songUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                url: fullUrl,
-                level: quality,
-                type: 'json'
+                id: id,
+                level: quality
             })
         });
 
@@ -158,7 +154,7 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
             const lyricResponse = await fetch(API_URLS.lyric, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: fullUrl })
+                body: JSON.stringify({ id: id })
             });
 
             if (lyricResponse.ok) {
@@ -190,7 +186,7 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
 // 3. 获取歌单
 // ============================================================
 
-async function fetchNeteasePlaylist(link) {
+async function fetchNeteasePlaylist(link, limit = 100, offset = 0) {
     try {
         let playlistId = link;
         if (!/^\d+$/.test(link)) {
@@ -205,7 +201,11 @@ async function fetchNeteasePlaylist(link) {
         const response = await fetch(API_URLS.playlist, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: playlistId })
+            body: JSON.stringify({
+                id: playlistId,
+                limit: limit,
+                offset: offset
+            })
         });
 
         if (!response.ok) {
