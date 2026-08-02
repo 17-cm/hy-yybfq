@@ -1,6 +1,6 @@
 /**
  * api.js - 音乐播放器网络请求模块
- * 版本: 2.4 (纯净稳定版：严格遵循接口字符串要求 + 本地格式拦截)
+ * 版本: 2.5 (真相大白版：伪装成官方完整链接发送)
  * 作者: hy.禾一 / Code Reviewer
  */
 
@@ -15,30 +15,20 @@ const API_URLS = {
 };
 
 // ==========================================
-// 工具：安全提取字符串格式的 ID (解决 400 的核心)
+// 核心机密：将纯数字自动包装成服务器要求的完整链接
 // ==========================================
-function extractNeteaseId(link) {
-    const strLink = String(link).trim();
-    // 1. 如果已经是纯数字，直接原样返回字符串
-    if (/^\d+$/.test(strLink)) return strLink;
-    // 2. 如果是标准的长链接，正则提取里面的数字，作为字符串返回
-    const match = strLink.match(/id=(\d+)/) || strLink.match(/song\/(\d+)/);
-    if (match) return match[1];
-    // 3. 提取不到（比如短链接），返回 null 交给业务拦截
-    return null; 
+function wrapSongId(input) {
+    const str = String(input).trim();
+    // 如果是纯数字，强制包装成完整歌曲链接
+    if (/^\d+$/.test(str)) return `https://music.163.com/song?id=${str}`;
+    return str; // 如果已经是链接，直接原样发送
 }
 
-function isNeteaseLink(url) {
-    const str = String(url).trim();
-    return /^\d+$/.test(str) || 
-           str.includes('music.163.com') || 
-           str.includes('163cn.tv') || 
-           str.includes('y.music.163.com');
-}
-
-function isPlaylistLink(url) {
-    const str = String(url).trim();
-    return /^\d+$/.test(str) || url.includes('playlist');
+function wrapPlaylistId(input) {
+    const str = String(input).trim();
+    // 如果是纯数字，强制包装成完整歌单链接
+    if (/^\d+$/.test(str)) return `https://music.163.com/playlist?id=${str}`;
+    return str;
 }
 
 // ==========================================
@@ -63,10 +53,10 @@ async function requestApi(url, payload) {
 // ==========================================
 // 双保险：获取播放链接
 // ==========================================
-async function fetchPlayUrlWithFallback(reqId, quality) {
+async function fetchPlayUrlWithFallback(reqUrl, quality) {
     let lastErrorMsg = "";
     try {
-        const data1 = await requestApi(API_URLS.songUrl, { id: reqId, level: quality });
+        const data1 = await requestApi(API_URLS.songUrl, { id: reqUrl, level: quality });
         if (data1.data?.url) return data1.data.url;
     } catch (e) {
         console.warn('⚠️ 主接口获取失败，切换备用接口...', e.message);
@@ -74,7 +64,7 @@ async function fetchPlayUrlWithFallback(reqId, quality) {
     }
 
     try {
-        const data2 = await requestApi(API_URLS.backupUrl, { id: reqId, level: quality });
+        const data2 = await requestApi(API_URLS.backupUrl, { id: reqUrl, level: quality });
         if (data2.data?.url) return data2.data.url;
     } catch (e) {
         console.warn('❌ 备用接口也失败了...', e.message);
@@ -87,9 +77,8 @@ async function fetchPlayUrlWithFallback(reqId, quality) {
 // ==========================================
 async function refreshSongUrl(link, quality = 'lossless') {
     try {
-        const reqId = extractNeteaseId(link);
-        if (!reqId) throw new Error('链接格式不支持');
-        return await fetchPlayUrlWithFallback(reqId, quality);
+        const reqUrl = wrapSongId(link);
+        return await fetchPlayUrlWithFallback(reqUrl, quality);
     } catch (e) {
         console.error('刷新播放链接失败:', e);
         return null;
@@ -103,20 +92,17 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
     try {
         if (!link) throw new Error('请输入歌曲链接或ID');
 
-        const reqId = extractNeteaseId(link);
-        if (!reqId) {
-            // 明确拦截短链接，不再去服务器受 400 的气
-            throw new Error('新接口已不支持短链接，请填入纯数字ID或长链接！');
-        }
+        // 关键步骤：把输入包装成服务器看得懂的长链接
+        const reqUrl = wrapSongId(link);
 
-        const infoData = await requestApi(API_URLS.songInfo, { id: reqId });
+        const infoData = await requestApi(API_URLS.songInfo, { id: reqUrl });
         const songInfo = infoData.data || {};
 
-        const playUrl = await fetchPlayUrlWithFallback(reqId, quality);
+        const playUrl = await fetchPlayUrlWithFallback(reqUrl, quality);
 
         let lyrics = '';
         try {
-            const lyricData = await requestApi(API_URLS.lyric, { id: reqId });
+            const lyricData = await requestApi(API_URLS.lyric, { id: reqUrl });
             lyrics = lyricData.data?.lyric || '';
         } catch (e) { 
             console.log('歌词获取失败，跳过'); 
@@ -129,7 +115,8 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
             lyrics: lyrics,
             cover: songInfo.pic || songInfo.picUrl || '',
             duration: songInfo.duration || '0:00',
-            neteaseId: reqId
+            // 提取出纯数字供本地使用
+            neteaseId: String(link).match(/\d+/)?.[0] || link 
         };
     } catch (error) {
         console.error('网易云解析失败:', error);
@@ -144,12 +131,10 @@ async function fetchNeteasePlaylist(link, limit = 100, offset = 0) {
     try {
         if (!link) throw new Error('请输入歌单链接或ID');
 
-        const reqId = extractNeteaseId(link);
-        if (!reqId) {
-            throw new Error('新接口已不支持短链接，请填入纯数字ID或长链接！');
-        }
+        // 关键步骤：把输入包装成服务器看得懂的长链接
+        const reqUrl = wrapPlaylistId(link);
 
-        const data = await requestApi(API_URLS.playlist, { id: reqId, limit, offset });
+        const data = await requestApi(API_URLS.playlist, { id: reqUrl, limit, offset });
         const playlist = data.data?.playlist || {};
         if (!playlist.tracks || playlist.tracks.length === 0) throw new Error('歌单为空');
 
@@ -171,6 +156,31 @@ async function fetchNeteasePlaylist(link, limit = 100, offset = 0) {
         console.error('获取歌单失败:', error);
         throw error;
     }
+}
+
+// ==========================================
+// 工具函数 (兼容处理)
+// ==========================================
+function isNeteaseLink(url) {
+    const str = String(url).trim();
+    // 纯数字直接放行！
+    return /^\d+$/.test(str) || 
+           str.includes('music.163.com') || 
+           str.includes('163cn.tv') || 
+           str.includes('y.music.163.com');
+}
+
+function isPlaylistLink(url) {
+    const str = String(url).trim();
+    // 纯数字直接放行！
+    return /^\d+$/.test(str) || url.includes('playlist');
+}
+
+function extractNeteaseId(link) {
+    const strLink = String(link).trim();
+    if (/^\d+$/.test(strLink)) return strLink;
+    const match = strLink.match(/id=(\d+)/) || strLink.match(/song\/(\d+)/);
+    return match ? match[1] : link; 
 }
 
 // ==========================================
