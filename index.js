@@ -1,5 +1,5 @@
 /*
- * 音乐播放器扩展入口（精简版）
+ * 音乐播放器扩展入口
  * 版本: 1.0.6
  * 作者: hy.禾一
  * 说明：只负责加载播放器核心，不修改任何播放逻辑
@@ -9,6 +9,7 @@ import { extension_settings } from '../../../extensions.js';
 import { saveSettingsDebounced } from '../../../../script.js';
 
 const EXTENSION_NAME = 'music_player';
+const EXTENSION_FOLDER = 'hy-yybfq';
 
 console.log('🎵 音乐播放器扩展加载中...');
 
@@ -276,7 +277,7 @@ function bindExtensionEvents() {
 
 function loadPlayerCore() {
     const scriptEl = document.createElement('script');
-    scriptEl.src = '/scripts/extensions/third-party/HY-audio-player/player.js';
+    scriptEl.src = '/scripts/extensions/third-party/hy-yybfq/player.js';
     scriptEl.onload = () => {
         console.log('✅ 播放器核心加载完成');
         
