@@ -1,7 +1,7 @@
 /**
  * api.js - 音乐播放器网络请求模块
- * 版本: 1.0.8
- * 作者: hy.禾一
+ * 版本: 1.1.0 (终极直连版：完全释放新接口的短链解析能力)
+ * 作者: hy.禾一 / Code Reviewer
  * 说明：只保留播放器需要的接口
  */
 
@@ -16,65 +16,33 @@ const BASE_URL = 'https://nextmusic.toubiec.cn';
 // ============================================================
 
 const API_URLS = {
-    // 播放链接：POST /api/getSongUrl  { id, level }
     songUrl: BASE_URL + '/api/getSongUrl',
-    
-    // 歌曲信息：POST /api/getSongInfo  { id }
     songInfo: BASE_URL + '/api/getSongInfo',
-    
-    // 歌词：POST /api/getSongLyric  { id }
     lyric: BASE_URL + '/api/getSongLyric',
-    
-    // 歌单全部歌曲：POST /api/playlist_trackall  { id, limit, offset }
     playlist: BASE_URL + '/api/playlist_trackall'
 };
 
 // ============================================================
-// 工具：提取纯数字ID (原版同步方法，保留以防外部调用)
+// 核心修复：智能ID提取器 (放行短链接！)
 // ============================================================
 
 function extractNeteaseId(link) {
     if (!link) return null;
     const strLink = String(link).trim();
+    
+    // 1. 如果是纯数字，转成真实的 Number 格式（防止 400 报错）
     if (/^\d+$/.test(strLink)) return Number(strLink);
+    
+    // 2. 如果包含 id=xxx，提取出数字并转为 Number
     const idMatch = strLink.match(/id=(\d+)/);
     if (idMatch) return Number(idMatch[1]);
+    
     const pathMatch = strLink.match(/song\/(\d+)/);
     if (pathMatch) return Number(pathMatch[1]);
-    return null;
-}
-
-// ============================================================
-// 新增工具：异步解析短链接 (自动跳一步还原真实数字 ID)
-// ============================================================
-
-async function getRealIdAsync(link) {
-    if (!link) return null;
-    const strLink = String(link).trim();
     
-    // 1. 本地直接提取（如果是纯数字或长链接）
-    const localId = extractNeteaseId(strLink);
-    if (localId) return Number(localId);
-    
-    // 2. 如果是短链接 (如 163cn.tv)，自动进行一次网络重定向解析
-    if (strLink.includes('163cn.tv') || strLink.includes('music.163.com')) {
-        try {
-            // 利用公共 CORS 代理跟随短链重定向，获取真实网页内容
-            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(strLink)}`;
-            const response = await fetch(proxyUrl);
-            const data = await response.json();
-            
-            // 从代理返回的目标 URL 或网页源码中提取纯数字 ID
-            const contentStr = (data.status?.url || '') + (data.contents || '');
-            const realIdMatch = contentStr.match(/id=(\d+)/);
-            if (realIdMatch) {
-                return Number(realIdMatch[1]);
-            }
-        } catch (error) {
-            console.error('短链接还原失败，请检查网络或更换长链接/数字ID测试:', error);
-        }
-    }
-    return null; // 解析不到返回 null
+    // 3. 关键修复：如果以上都不满足（比如 163cn.tv 短链），
+    // 绝对不要返回 null 阻断它！原封不动地返回这串短链，让聪明的后端去处理！
+    return strLink;
 }
 
 // ============================================================
@@ -83,33 +51,27 @@ async function getRealIdAsync(link) {
 
 async function refreshSongUrl(neteaseId, quality = 'lossless') {
     try {
-        // 修改：使用新增的智能提取，支持短链解析
-        const id = (await getRealIdAsync(neteaseId)) || extractNeteaseId(neteaseId) || neteaseId;
+        const id = extractNeteaseId(neteaseId);
 
         const response = await fetch(API_URLS.songUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                id: Number(id), // 强制数字，防 400 报错
+                id: id, 
                 level: quality
             })
         });
 
-        if (!response.ok) {
-            throw new Error('获取播放链接失败');
-        }
-
+        if (!response.ok) throw new Error('获取播放链接失败');
         const data = await response.json();
 
-        // 兼容多格式判断
+        // 兼容新接口的多种状态判断
         if (data.status !== 200 && data.code !== 200 && data.success !== true) {
             throw new Error(data.message || '获取播放链接失败');
         }
 
         const playUrl = data.data?.url || '';
-        if (!playUrl) {
-            throw new Error('返回数据中无播放链接');
-        }
+        if (!playUrl) throw new Error('返回数据中无播放链接');
 
         return playUrl;
     } catch (error) {
@@ -124,29 +86,22 @@ async function refreshSongUrl(neteaseId, quality = 'lossless') {
 
 async function fetchNeteaseSongInfo(link, quality = 'lossless') {
     try {
-        // 修改：使用新增的智能提取，支持短链解析
-        const id = await getRealIdAsync(link);
-        if (!id) {
-            throw new Error('无法提取歌曲ID，若是短链可能代理解析失败');
-        }
+        const id = extractNeteaseId(link);
+        if (!id) throw new Error('歌曲链接或ID不能为空');
 
         // 获取歌曲信息
         const infoResponse = await fetch(API_URLS.songInfo, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: Number(id) }) // 强制数字，防 400 报错
+            body: JSON.stringify({ id: id })
         });
 
-        if (!infoResponse.ok) {
-            throw new Error('获取歌曲信息失败');
-        }
-
+        if (!infoResponse.ok) throw new Error('获取歌曲信息失败');
         const infoData = await infoResponse.json();
 
         if (infoData.status !== 200 && infoData.code !== 200 && infoData.success !== true) {
             throw new Error(infoData.message || '获取歌曲信息失败');
         }
-
         const songInfo = infoData.data || {};
 
         // 获取播放链接
@@ -154,15 +109,12 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                id: Number(id), // 强制数字，防 400 报错
+                id: id,
                 level: quality
             })
         });
 
-        if (!urlResponse.ok) {
-            throw new Error('获取播放链接失败');
-        }
-
+        if (!urlResponse.ok) throw new Error('获取播放链接失败');
         const urlData = await urlResponse.json();
 
         if (urlData.status !== 200 && urlData.code !== 200 && urlData.success !== true) {
@@ -170,9 +122,7 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
         }
 
         const playUrl = urlData.data?.url || '';
-        if (!playUrl) {
-            throw new Error('无法获取播放链接');
-        }
+        if (!playUrl) throw new Error('无法获取播放链接');
 
         // 获取歌词
         let lyrics = '';
@@ -180,7 +130,7 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
             const lyricResponse = await fetch(API_URLS.lyric, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: Number(id) }) // 强制数字，防 400 报错
+                body: JSON.stringify({ id: id })
             });
 
             if (lyricResponse.ok) {
@@ -190,7 +140,7 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
                 }
             }
         } catch (e) {
-            console.log('歌词获取失败，跳过');
+            // 歌词获取失败静默处理
         }
 
         return {
@@ -214,26 +164,20 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
 
 async function fetchNeteasePlaylist(link, limit = 100, offset = 0) {
     try {
-        // 修改：使用新增的智能提取，自动识别歌单长/短链
-        const playlistId = await getRealIdAsync(link);
-        if (!playlistId) {
-            throw new Error('无法提取歌单ID');
-        }
+        const playlistId = extractNeteaseId(link);
+        if (!playlistId) throw new Error('歌单链接或ID不能为空');
 
         const response = await fetch(API_URLS.playlist, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                id: Number(playlistId), // 强制数字，彻底防 400 报错
+                id: playlistId,
                 limit: limit,
                 offset: offset
             })
         });
 
-        if (!response.ok) {
-            throw new Error('获取歌单失败');
-        }
-
+        if (!response.ok) throw new Error('获取歌单失败');
         const data = await response.json();
 
         if (data.status !== 200 && data.code !== 200 && data.success !== true) {
