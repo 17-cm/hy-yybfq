@@ -62,6 +62,9 @@ const MusicPlayerCore = {
     init() {
         this.loadData();
         this.bindAudioEvents();
+        if (typeof window.bindEvents === 'function') {
+            window.bindEvents();
+        }
         console.log('🎵 播放器核心初始化完成');
     },
 
@@ -108,7 +111,6 @@ const MusicPlayerCore = {
         this.state.panel = false;
         this.state.isCaching = false;
 
-        // 通知UI更新
         if (typeof window.updateView === 'function') {
             window.updateView();
         }
