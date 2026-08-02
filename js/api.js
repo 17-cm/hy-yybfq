@@ -2,7 +2,7 @@
  * api.js - 音乐播放器网络请求模块
  * 版本: 1.0.6
  * 作者: hy.禾一
- * 说明：按作者最新接口文档，所有接口统一管理
+ * 说明：只保留播放器需要的接口
  */
 
 // ============================================================
@@ -12,7 +12,7 @@
 const BASE_URL = 'https://nextmusic.toubiec.cn';
 
 // ============================================================
-// 完整接口地址（按最新文档）
+// 接口地址（只保留需要的）
 // ============================================================
 
 const API_URLS = {
@@ -26,19 +26,7 @@ const API_URLS = {
     lyric: BASE_URL + '/api/getSongLyric',
     
     // 歌单全部歌曲：POST /api/playlist_trackall  { id, limit, offset }
-    playlist: BASE_URL + '/api/playlist_trackall',
-    
-    // 搜索：POST /api/search  { keyword, type, limit, offset }
-    search: BASE_URL + '/api/search',
-    
-    // 专辑：POST /api/getAlbum  { id }
-    album: BASE_URL + '/api/getAlbum',
-    
-    // 歌曲百科：POST /api/song/wiki  { id }
-    songWiki: BASE_URL + '/api/song/wiki',
-    
-    // 健康检查：GET /api/topen
-    health: BASE_URL + '/api/topen'
+    playlist: BASE_URL + '/api/playlist_trackall'
 };
 
 // ============================================================
