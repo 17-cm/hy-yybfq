@@ -1,6 +1,6 @@
 /**
  * api.js - 音乐播放器网络请求模块
- * 版本: 2.2 (终极直连版：支持纯数字放行 + 自动双保险备用接口)
+ * 版本: 2.4 (纯净稳定版：严格遵循接口字符串要求 + 本地格式拦截)
  * 作者: hy.禾一 / Code Reviewer
  */
 
@@ -8,23 +8,50 @@ const BASE_URL = 'https://nextmusic.toubiec.cn';
 
 const API_URLS = {
     songUrl: BASE_URL + '/api/getSongUrl',         // 主接口
-    backupUrl: BASE_URL + '/api/getMusicUrl',      // 备用接口（防抽风双保险）
+    backupUrl: BASE_URL + '/api/getMusicUrl',      // 备用兜底接口
     songInfo: BASE_URL + '/api/getSongInfo',
     lyric: BASE_URL + '/api/getSongLyric',
     playlist: BASE_URL + '/api/playlist_trackall'
 };
 
 // ==========================================
-// 极简直连核心请求器
+// 工具：安全提取字符串格式的 ID (解决 400 的核心)
+// ==========================================
+function extractNeteaseId(link) {
+    const strLink = String(link).trim();
+    // 1. 如果已经是纯数字，直接原样返回字符串
+    if (/^\d+$/.test(strLink)) return strLink;
+    // 2. 如果是标准的长链接，正则提取里面的数字，作为字符串返回
+    const match = strLink.match(/id=(\d+)/) || strLink.match(/song\/(\d+)/);
+    if (match) return match[1];
+    // 3. 提取不到（比如短链接），返回 null 交给业务拦截
+    return null; 
+}
+
+function isNeteaseLink(url) {
+    const str = String(url).trim();
+    return /^\d+$/.test(str) || 
+           str.includes('music.163.com') || 
+           str.includes('163cn.tv') || 
+           str.includes('y.music.163.com');
+}
+
+function isPlaylistLink(url) {
+    const str = String(url).trim();
+    return /^\d+$/.test(str) || url.includes('playlist');
+}
+
+// ==========================================
+// 统一请求器
 // ==========================================
 async function requestApi(url, payload) {
     const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload) // 原封不动，把链接或ID直接发给服务器！
+        body: JSON.stringify(payload)
     });
 
-    if (!response.ok) throw new Error(`请求失败: ${response.status}`);
+    if (!response.ok) throw new Error(`请求失败: HTTP ${response.status}`);
     const data = await response.json();
     
     if (data.status !== 200 && data.code !== 200 && data.success !== true) {
@@ -34,29 +61,25 @@ async function requestApi(url, payload) {
 }
 
 // ==========================================
-// 核心强化：双保险获取播放链接 (自动失败切换)
+// 双保险：获取播放链接
 // ==========================================
-async function fetchPlayUrlWithFallback(link, quality) {
+async function fetchPlayUrlWithFallback(reqId, quality) {
     let lastErrorMsg = "";
-    
-    // 第一波尝试：主接口
     try {
-        const data1 = await requestApi(API_URLS.songUrl, { id: link, level: quality });
+        const data1 = await requestApi(API_URLS.songUrl, { id: reqId, level: quality });
         if (data1.data?.url) return data1.data.url;
     } catch (e) {
-        console.warn('⚠️ 主接口获取失败，正在无缝切换备用接口...', e.message);
+        console.warn('⚠️ 主接口获取失败，切换备用接口...', e.message);
         lastErrorMsg = e.message;
     }
 
-    // 第二波尝试：主接口失败，备用接口顶上
     try {
-        const data2 = await requestApi(API_URLS.backupUrl, { id: link, level: quality });
+        const data2 = await requestApi(API_URLS.backupUrl, { id: reqId, level: quality });
         if (data2.data?.url) return data2.data.url;
     } catch (e) {
         console.warn('❌ 备用接口也失败了...', e.message);
     }
-
-    throw new Error('主/备接口目前均无法获取播放链接。' + lastErrorMsg);
+    throw new Error('主/备接口均无法获取播放链接。' + lastErrorMsg);
 }
 
 // ==========================================
@@ -64,7 +87,9 @@ async function fetchPlayUrlWithFallback(link, quality) {
 // ==========================================
 async function refreshSongUrl(link, quality = 'lossless') {
     try {
-        return await fetchPlayUrlWithFallback(link, quality);
+        const reqId = extractNeteaseId(link);
+        if (!reqId) throw new Error('链接格式不支持');
+        return await fetchPlayUrlWithFallback(reqId, quality);
     } catch (e) {
         console.error('刷新播放链接失败:', e);
         return null;
@@ -78,17 +103,20 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
     try {
         if (!link) throw new Error('请输入歌曲链接或ID');
 
-        // 发送给服务器去解析信息
-        const infoData = await requestApi(API_URLS.songInfo, { id: link });
+        const reqId = extractNeteaseId(link);
+        if (!reqId) {
+            // 明确拦截短链接，不再去服务器受 400 的气
+            throw new Error('新接口已不支持短链接，请填入纯数字ID或长链接！');
+        }
+
+        const infoData = await requestApi(API_URLS.songInfo, { id: reqId });
         const songInfo = infoData.data || {};
 
-        // 使用双保险去拿 mp3 链接
-        const playUrl = await fetchPlayUrlWithFallback(link, quality);
+        const playUrl = await fetchPlayUrlWithFallback(reqId, quality);
 
-        // 拿歌词 (歌词失败不影响放歌)
         let lyrics = '';
         try {
-            const lyricData = await requestApi(API_URLS.lyric, { id: link });
+            const lyricData = await requestApi(API_URLS.lyric, { id: reqId });
             lyrics = lyricData.data?.lyric || '';
         } catch (e) { 
             console.log('歌词获取失败，跳过'); 
@@ -101,7 +129,7 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
             lyrics: lyrics,
             cover: songInfo.pic || songInfo.picUrl || '',
             duration: songInfo.duration || '0:00',
-            neteaseId: link
+            neteaseId: reqId
         };
     } catch (error) {
         console.error('网易云解析失败:', error);
@@ -116,7 +144,12 @@ async function fetchNeteasePlaylist(link, limit = 100, offset = 0) {
     try {
         if (!link) throw new Error('请输入歌单链接或ID');
 
-        const data = await requestApi(API_URLS.playlist, { id: link, limit, offset });
+        const reqId = extractNeteaseId(link);
+        if (!reqId) {
+            throw new Error('新接口已不支持短链接，请填入纯数字ID或长链接！');
+        }
+
+        const data = await requestApi(API_URLS.playlist, { id: reqId, limit, offset });
         const playlist = data.data?.playlist || {};
         if (!playlist.tracks || playlist.tracks.length === 0) throw new Error('歌单为空');
 
@@ -138,32 +171,6 @@ async function fetchNeteasePlaylist(link, limit = 100, offset = 0) {
         console.error('获取歌单失败:', error);
         throw error;
     }
-}
-
-// ==========================================
-// 4. 工具函数 (已修复：允许纯数字ID通过验证)
-// ==========================================
-function isNeteaseLink(url) {
-    const str = String(url).trim();
-    // 纯数字直接放行！或者检查是否包含官方域名
-    return /^\d+$/.test(str) || 
-           str.includes('music.163.com') || 
-           str.includes('163cn.tv') || 
-           str.includes('y.music.163.com');
-}
-
-function isPlaylistLink(url) {
-    const str = String(url).trim();
-    // 纯数字直接放行！或者检查是否包含 playlist 关键字
-    return /^\d+$/.test(str) || url.includes('playlist');
-}
-
-function extractNeteaseId(link) {
-    // 兼容性保留
-    const strLink = String(link).trim();
-    if (/^\d+$/.test(strLink)) return strLink;
-    const match = strLink.match(/id=(\d+)/) || strLink.match(/song\/(\d+)/);
-    return match ? match[1] : link; 
 }
 
 // ==========================================
