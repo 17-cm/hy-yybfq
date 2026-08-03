@@ -1,67 +1,93 @@
 /**
  * api.js - 音乐播放器网络请求模块
- * 版本: MAX (完美全栈版：呼叫自带的 server.js 代理)
+ * 版本: Meting-API
+ * 作者: hy.禾一
  */
 
-// 目标靶点：全能 Python 接口
-const TARGET_API_SONG = 'https://wyapi.toubiec.cn/song';
-const TARGET_API_PLAYLIST = 'https://wyapi.toubiec.cn/playlist';
-
-// 呼叫你 server.js 里注册的专属通道！
-const LOCAL_PROXY_URL = '/api/plugins/音乐播放器/forward';
+// 你找到的神级 API 地址 (如果失效，可换成 musicapi.aliyuncs.com/meting)
+const BASE_URL = 'https://api.aliyuncs.com/meting';
 
 // ==========================================
-// 核心：呼叫后端特工去跑腿！
+// 工具函数：提取纯数字 ID，拦截恶心短链
 // ==========================================
-async function callBackendProxy(targetUrl, payloadData) {
-    const response = await fetch(LOCAL_PROXY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            targetUrl: targetUrl,
-            payload: payloadData
-        })
-    });
+function extractNeteaseId(link) {
+    if (!link) return null;
+    const strLink = String(link).trim();
+    
+    // 如果是短链接，果断拦截，提示用户用数字
+    if (strLink.includes('163cn.tv')) return null; 
+    
+    // 提取出纯数字
+    if (/^\d+$/.test(strLink)) return strLink;
+    const match = strLink.match(/id=(\d+)/) || strLink.match(/song\/(\d+)/);
+    return match ? match[1] : null; 
+}
 
-    if (!response.ok) {
-        throw new Error('呼叫后端特工失败，请确认已重启酒馆');
-    }
+function isNeteaseLink(url) {
+    const str = String(url).trim();
+    if (str.includes('163cn.tv')) return false; // 拒绝短链
+    return /^\d+$/.test(str) || str.includes('163');
+}
 
-    const data = await response.json();
-    if (data.status !== 200 && data.code !== 200 && data.success !== false) {
-        throw new Error(data.message || '网易云接口未返回有效数据');
-    }
-    return data;
+function isPlaylistLink(url) {
+    const str = String(url).trim();
+    if (str.includes('163cn.tv')) return false;
+    return /^\d+$/.test(str) || url.includes('playlist');
 }
 
 // ==========================================
-// 1. 获取歌曲全套信息 (一步到位)
+// 1. 获取歌曲全套信息 (Meting API)
 // ==========================================
-async function fetchNeteaseSongInfo(link, quality = 'lossless') {
+async function fetchNeteaseSongInfo(link) {
     try {
-        if (!link) throw new Error('请输入歌曲链接或ID');
-        const reqStr = String(link).trim();
+        const reqId = extractNeteaseId(link);
+        if (!reqId) {
+            throw new Error('不支持手机端分享的短链接，请直接输入纯数字ID！');
+        }
 
-        const data = await callBackendProxy(TARGET_API_SONG, {
-            url: reqStr, 
-            level: quality,
-            type: "json"
-        });
+        // Meting API 魔法：type=song 一步获取所有信息
+        const targetUrl = `${BASE_URL}?server=netease&type=song&id=${reqId}`;
+        const response = await fetch(targetUrl);
 
-        const info = data.data || {};
-        if (!info.url) throw new Error('歌曲无版权或未返回播放音频流');
+        if (!response.ok) throw new Error(`网络请求失败: HTTP ${response.status}`);
+        
+        const data = await response.json();
+        
+        // Meting 会返回一个数组，取第一个
+        if (!data || data.length === 0) throw new Error('未找到歌曲，可能是VIP限制或ID错误');
+        
+        const song = data[0];
+        if (!song.url) throw new Error('未获取到播放链接');
+
+        // 尝试获取歌词 (Meting 的 lrc 字段可能是一个链接，也可能是原始文本)
+        let lyricText = '';
+        try {
+            // 保险起见，单独请求一次歌词接口
+            const lrcRes = await fetch(`${BASE_URL}?server=netease&type=lrc&id=${reqId}`);
+            const lrcData = await lrcRes.text();
+            
+            // 尝试解析JSON（部分节点返回JSON格式），如果报错就说明是纯文本
+            try {
+                const parsed = JSON.parse(lrcData);
+                lyricText = parsed.lyric || parsed.lrc || lrcData;
+            } catch(e) {
+                lyricText = lrcData; // 是纯文本歌词
+            }
+        } catch (e) {
+            console.log('歌词获取失败，不影响播放');
+        }
 
         return {
-            title: info.name || '未知歌曲',
-            artist: info.ar_name || '未知艺术家',
-            url: info.url,
-            lyrics: info.lyric || '',
-            cover: info.pic || '',
-            duration: info.duration || '0:00',
-            neteaseId: extractNeteaseId(reqStr) || reqStr
+            title: song.name || '未知歌曲',
+            artist: song.artist || '未知艺术家',
+            url: song.url,
+            lyrics: lyricText,
+            cover: song.pic || '',
+            duration: '0:00',
+            neteaseId: reqId
         };
     } catch (error) {
-        console.error('网易云单曲解析失败:', error);
+        console.error('单曲解析失败:', error);
         throw error;
     }
 }
@@ -69,39 +95,54 @@ async function fetchNeteaseSongInfo(link, quality = 'lossless') {
 // ==========================================
 // 2. 刷新播放链接 
 // ==========================================
-async function refreshSongUrl(link, quality = 'lossless') {
+async function refreshSongUrl(link) {
     try {
-        const info = await fetchNeteaseSongInfo(link, quality);
-        return info.url || null;
-    } catch (e) { return null; }
+        const reqId = extractNeteaseId(link);
+        if (!reqId) return null;
+
+        const res = await fetch(`${BASE_URL}?server=netease&type=url&id=${reqId}`);
+        const data = await res.json();
+        
+        // type=url 接口可能返回带有 url 字段的对象或直接是链接
+        return data.url || (data[0] && data[0].url) || null;
+    } catch (e) {
+        return null;
+    }
 }
 
 // ==========================================
-// 3. 获取歌单
+// 3. 获取歌单全量歌曲 (Meting API 绝技)
 // ==========================================
 async function fetchNeteasePlaylist(link) {
     try {
-        if (!link) throw new Error('请输入歌单链接或ID');
-        const reqId = extractNeteaseId(link) || String(link).trim();
+        const reqId = extractNeteaseId(link);
+        if (!reqId) throw new Error('请输入纯数字 ID 或长链接');
 
-        const data = await callBackendProxy(TARGET_API_PLAYLIST, { id: reqId });
+        // Meting API 魔法：type=playlist 直接把歌单里所有的歌全解出来！
+        const targetUrl = `${BASE_URL}?server=netease&type=playlist&id=${reqId}`;
+        const response = await fetch(targetUrl);
         
-        const playlist = data.data?.playlist || data.data || {};
-        const tracks = playlist.tracks || data.data?.tracks || [];
-        if (tracks.length === 0) throw new Error('歌单为空或获取失败');
+        if (!response.ok) throw new Error(`网络请求失败: HTTP ${response.status}`);
+        
+        const data = await response.json();
+        
+        if (!data || data.length === 0) {
+            throw new Error('歌单为空或解析失败');
+        }
 
+        // Meting 返回的是一个歌曲数组
         return {
-            name: playlist.name || '未知歌单',
-            creator: playlist.creator?.nickname || playlist.creator || '未知创建者',
-            description: playlist.description || '',
-            coverImgUrl: playlist.coverImgUrl || '',
-            trackCount: tracks.length,
-            tracks: tracks.map(track => ({
-                id: track.id || track.song_id,
-                name: track.name || '未知歌曲',
-                artists: track.ar_name || track.ar?.map(a=>a.name).join('/') || track.artists || '未知艺术家',
-                album: track.al_name || track.al?.name || track.album || '',
-                picUrl: track.pic || track.al?.picUrl || track.picUrl || ''
+            name: "网易云导入歌单", // Meting playlist接口直接返回歌曲列表，不包含歌单名字
+            creator: "Meting API",
+            description: "通过公共接口解析",
+            coverImgUrl: data[0]?.pic || '', // 用第一首歌的封面当歌单封面
+            trackCount: data.length,
+            tracks: data.map(song => ({
+                id: song.id || reqId, // 防止某些节点不返回歌曲ID
+                name: song.name || '未知歌曲',
+                artists: song.artist || '未知艺术家',
+                album: '未知专辑',
+                picUrl: song.pic || ''
             }))
         };
     } catch (error) {
@@ -110,16 +151,9 @@ async function fetchNeteasePlaylist(link) {
     }
 }
 
-// 工具函数
-function isNeteaseLink(url) { return !!url; }
-function isPlaylistLink(url) { return !!url; }
-function extractNeteaseId(link) {
-    const strLink = String(link).trim();
-    if (/^\d+$/.test(strLink)) return strLink;
-    const match = strLink.match(/id=(\d+)/) || strLink.match(/song\/(\d+)/);
-    return match ? match[1] : null; 
-}
-
+// ==========================================
+// 暴露到全局
+// ==========================================
 window.refreshSongUrl = refreshSongUrl;
 window.fetchNeteaseSongInfo = fetchNeteaseSongInfo;
 window.fetchNeteasePlaylist = fetchNeteasePlaylist;
