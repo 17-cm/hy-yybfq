@@ -13,29 +13,33 @@ const CHANNELS = [
         id: 1,
         name: 'qijieya',
         base: 'https://api.qijieya.cn/meting/',
-        type: 'meting',       // Meting 格式：?server=netease&type=song&id=xxx
-        priority: 1
+        type: 'meting',
+        priority: 1,
+        platform: 'qishui'
     },
     {
         id: 2,
         name: 'injahow',
         base: 'https://api.injahow.cn/meting/',
         type: 'meting',
-        priority: 2
+        priority: 2,
+        platform: 'qishui'
     },
     {
         id: 3,
         name: 'bugpk',
         base: 'https://api.bugpk.com/api/163_music',
-        type: 'bugpk',        // BugPK 格式：?type=song&id=xxx
-        priority: 3
+        type: 'bugpk',
+        priority: 3,
+        platform: 'netease'
     },
     {
         id: 4,
         name: 'byfuns',
         base: 'https://api.byfuns.top/api/1/',
-        type: 'byfuns',       // Byfuns 返回纯直链
-        priority: 4
+        type: 'byfuns',
+        priority: 4,
+        platform: 'netease'
     }
 ];
 
@@ -69,7 +73,6 @@ function isPlaylistLink(url) {
 // ============================================================
 
 async function fetchSongInfo(id) {
-    // 按优先级排序
     const sorted = [...CHANNELS].sort((a, b) => a.priority - b.priority);
 
     for (const channel of sorted) {
@@ -86,7 +89,6 @@ async function fetchSongInfo(id) {
                 const song = data[0];
                 if (!song || !song.name) continue;
 
-                // 获取歌词
                 let lyricText = '';
                 if (song.lrc) {
                     try {
@@ -115,7 +117,6 @@ async function fetchSongInfo(id) {
                 const song = data.data;
                 if (!song || !song.name) continue;
 
-                // 获取歌词（BugPK 支持 type=lyric）
                 let lyricText = '';
                 try {
                     const lrcRes = await fetch(`${channel.base}?type=lyric&id=${id}`);
@@ -160,20 +161,17 @@ async function fetchSongUrl(id, level = 'exhigh') {
             let response;
 
             if (channel.type === 'meting') {
-                // 先尝试 type=url
                 url = `${channel.base}?server=netease&type=url&id=${id}`;
                 response = await fetch(url);
                 if (response.ok) {
                     const text = await response.text();
                     if (text.startsWith('http')) return text;
                 }
-                // 如果 type=url 失败，尝试从 type=song 里取
                 const songUrl = `${channel.base}?server=netease&type=song&id=${id}`;
                 const songRes = await fetch(songUrl);
                 if (!songRes.ok) continue;
                 const data = await songRes.json();
                 if (data && data[0] && data[0].url) {
-                    // 如果返回的是接口地址，继续尝试
                     const innerUrl = data[0].url;
                     if (innerUrl.startsWith('http')) {
                         const innerRes = await fetch(innerUrl);
@@ -281,7 +279,7 @@ async function fetchPlaylist(id) {
 }
 
 // ============================================================
-// 对外接口（保持与原有命名一致）
+// 对外接口
 // ============================================================
 
 async function fetchNeteaseSongInfo(link) {
@@ -289,7 +287,6 @@ async function fetchNeteaseSongInfo(link) {
         const id = extractNeteaseId(link);
         if (!id) throw new Error('无法提取歌曲ID，请检查链接');
         const result = await fetchSongInfo(id);
-        // 如果有播放链接，补上
         if (!result.url) {
             const url = await fetchSongUrl(id);
             if (url) result.url = url;
