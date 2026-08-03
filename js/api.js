@@ -1,205 +1,150 @@
 /**
- * api.js - 音乐播放器网络请求模块（qijieya 专用版）
+ * api.js - 音乐播放器网络请求模块（qijieya 通道，照抄 injahow 逻辑）
  * 作者: hy.禾一
  */
 
-const CHANNELS = [
-    {
-        id: 1,
-        name: 'qijieya',
-        base: 'https://api.qijieya.cn/meting/',
-        type: 'meting',
-        priority: 1,
-        platform: 'qishui'
+// ==========================================
+// 🛡️ 防盗链破解
+// ==========================================
+(function injectNoReferrer() {
+    if (!document.querySelector('meta[name="referrer"]')) {
+        const meta = document.createElement('meta');
+        meta.name = "referrer";
+        meta.content = "no-referrer";
+        document.head.appendChild(meta);
+        console.log("🛡️ 已自动穿上隐身衣");
     }
-];
+})();
 
-// ============================================================
+// ==========================================
+// 接口配置（只换这里）
+// ==========================================
+const BASE_URL = 'https://api.qijieya.cn/meting/';
+
+// ==========================================
 // 工具函数
-// ============================================================
-
+// ==========================================
 function extractNeteaseId(link) {
     if (!link) return null;
     const strLink = String(link).trim();
     if (/^\d+$/.test(strLink)) return strLink;
-    const idMatch = strLink.match(/[?&]id=(\d+)/);
-    if (idMatch) return idMatch[1];
-    const pathMatch = strLink.match(/\/song\/(\d+)/);
-    if (pathMatch) return pathMatch[1];
-    const playlistMatch = strLink.match(/\/playlist\/(\d+)/);
-    if (playlistMatch) return playlistMatch[1];
-    return null;
+    const match = strLink.match(/id=(\d+)/) || strLink.match(/song\/(\d+)/);
+    return match ? match[1] : null;
 }
 
 function isNeteaseLink(url) {
     const str = String(url).trim();
-    return str.includes('music.163.com') || str.includes('163cn.tv') || /^\d+$/.test(str);
+    return /^\d+$/.test(str) || str.includes('163');
 }
 
 function isPlaylistLink(url) {
     const str = String(url).trim();
-    return str.includes('playlist') || str.includes('163cn.tv') || /^\d+$/.test(str);
+    return /^\d+$/.test(str) || url.includes('playlist');
 }
 
-// ============================================================
-// 单曲信息获取
-// ============================================================
-
-async function fetchSongInfo(id) {
-    const channel = CHANNELS[0];
-    const url = `${channel.base}?server=netease&type=song&id=${id}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-    }
-    const data = await response.json();
-    if (!data || data.length === 0) {
-        throw new Error('返回数据为空');
-    }
-    const song = data[0];
-    if (!song || !song.name) {
-        throw new Error('未找到歌曲信息');
-    }
-
-    // 获取歌词
-    let lyricText = '';
-    if (song.lrc) {
-        try {
-            const lrcRes = await fetch(song.lrc);
-            if (lrcRes.ok) {
-                lyricText = await lrcRes.text();
-            }
-        } catch (e) {}
-    }
-
-    // 获取播放直链
-    let playUrl = '';
-    if (song.url) {
-        try {
-            const urlRes = await fetch(song.url);
-            if (urlRes.ok) {
-                playUrl = await urlRes.text();
-            }
-        } catch (e) {}
-    }
-
-    return {
-        title: song.name || '未知歌曲',
-        artist: song.artist || '未知艺术家',
-        url: playUrl || song.url || '',
-        lyrics: lyricText,
-        cover: song.pic || '',
-        duration: '0:00',
-        neteaseId: id,
-        source: channel.name
-    };
-}
-
-// ============================================================
-// 播放链接获取
-// ============================================================
-
-async function fetchSongUrl(id) {
-    const channel = CHANNELS[0];
+// ==========================================
+// 1. 获取歌曲信息
+// ==========================================
+async function fetchNeteaseSongInfo(link) {
     try {
-        const url = `${channel.base}?server=netease&type=url&id=${id}`;
-        const response = await fetch(url);
-        if (response.ok) {
-            const text = await response.text();
-            if (text.startsWith('http')) {
-                return text;
-            }
+        const reqId = extractNeteaseId(link);
+        if (!reqId) {
+            throw new Error('请输入纯数字 ID 或标准长链接');
         }
-        return null;
+
+        const response = await fetch(`${BASE_URL}?server=netease&type=song&id=${reqId}`);
+        if (!response.ok) throw new Error(`请求失败: ${response.status}`);
+        
+        const data = await response.json();
+        if (!data || data.length === 0) throw new Error('未找到歌曲信息');
+        
+        const song = data[0];
+
+        let lyricText = '';
+        if (song.lrc) {
+            try {
+                const lrcRes = await fetch(song.lrc);
+                lyricText = await lrcRes.text();
+            } catch (e) {}
+        }
+
+        return {
+            title: song.name || '未知歌曲',
+            artist: song.artist || '未知艺术家',
+            url: song.url,
+            lyrics: lyricText,
+            cover: song.pic || '',
+            duration: '0:00',
+            neteaseId: reqId
+        };
+    } catch (error) {
+        console.error('单曲解析失败:', error);
+        throw error;
+    }
+}
+
+// ==========================================
+// 2. 刷新播放链接
+// ==========================================
+async function refreshSongUrl(link) {
+    try {
+        const reqId = extractNeteaseId(link);
+        if (!reqId) return null;
+        const res = await fetch(`${BASE_URL}?server=netease&type=url&id=${reqId}`);
+        const data = await res.json();
+        return data.url || (data[0] && data[0].url) || null;
     } catch (e) {
         return null;
     }
 }
 
-// ============================================================
-// 歌单获取
-// ============================================================
-
-async function fetchPlaylist(id) {
-    const channel = CHANNELS[0];
-    const url = `${channel.base}?server=netease&type=playlist&id=${id}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-    }
-    const data = await response.json();
-    if (!data || data.length === 0) {
-        throw new Error('歌单数据为空');
-    }
-
-    const tracks = [];
-    for (const song of data) {
-        let playUrl = '';
-        if (song.url) {
-            try {
-                const urlRes = await fetch(song.url);
-                if (urlRes.ok) {
-                    playUrl = await urlRes.text();
-                }
-            } catch (e) {}
-        }
-        tracks.push({
-            id: song.id || id,
-            name: song.name || '未知歌曲',
-            artists: song.artist || '未知艺术家',
-            album: song.album || '未知专辑',
-            picUrl: song.pic || '',
-            url: playUrl
-        });
-    }
-
-    return {
-        name: data[0]?.album || '网易云歌单',
-        creator: 'Meting API',
-        description: '',
-        coverImgUrl: data[0]?.pic || '',
-        trackCount: data.length,
-        tracks: tracks
-    };
-}
-
-// ============================================================
-// 对外接口
-// ============================================================
-
-async function fetchNeteaseSongInfo(link) {
-    const id = extractNeteaseId(link);
-    if (!id) {
-        throw new Error('无法提取歌曲ID，请检查链接');
-    }
-    return await fetchSongInfo(id);
-}
-
-async function refreshSongUrl(link) {
-    const id = extractNeteaseId(link);
-    if (!id) return null;
-    return await fetchSongUrl(id);
-}
-
+// ==========================================
+// 3. 获取歌单
+// ==========================================
 async function fetchNeteasePlaylist(link) {
-    let id = extractNeteaseId(link);
-    if (!id && /^\d+$/.test(link.trim())) {
-        id = link.trim();
+    try {
+        const reqId = extractNeteaseId(link);
+        if (!reqId) throw new Error('请输入纯数字 ID 或长链接');
+
+        const response = await fetch(`${BASE_URL}?server=netease&type=playlist&id=${reqId}`);
+        if (!response.ok) throw new Error(`网络请求失败: ${response.status}`);
+        
+        const data = await response.json();
+        if (!data || data.length === 0) {
+            throw new Error('该歌单为空，或接口暂不支持解析');
+        }
+
+        return {
+            name: '网易云导入歌单',
+            creator: 'Meting API',
+            description: '公共接口解析',
+            coverImgUrl: data[0]?.pic || '',
+            trackCount: data.length,
+            tracks: data.map(song => {
+                const idMatch = song.url ? song.url.match(/id=(\d+)/) : null;
+                const songId = idMatch ? idMatch[1] : reqId;
+
+                return {
+                    id: songId,
+                    name: song.name || '未知歌曲',
+                    artists: song.artist || '未知艺术家',
+                    album: '未知专辑',
+                    picUrl: song.pic || ''
+                };
+            }).filter(t => t.id)
+        };
+    } catch (error) {
+        console.error('获取歌单失败:', error);
+        throw error;
     }
-    if (!id) {
-        throw new Error('无法提取歌单ID');
-    }
-    return await fetchPlaylist(id);
 }
 
-// ============================================================
+// ==========================================
 // 暴露到全局
-// ============================================================
-
+// ==========================================
 window.refreshSongUrl = refreshSongUrl;
 window.fetchNeteaseSongInfo = fetchNeteaseSongInfo;
 window.fetchNeteasePlaylist = fetchNeteasePlaylist;
 window.isNeteaseLink = isNeteaseLink;
 window.isPlaylistLink = isPlaylistLink;
 window.extractNeteaseId = extractNeteaseId;
-window.CHANNELS = CHANNELS;
