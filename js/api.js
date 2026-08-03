@@ -1,12 +1,12 @@
 /**
- * api.js - 音乐播放器网络请求模块
- * 版本: Meting-API (阿里云公共节点版)
+ * api.js - 音乐播放器网络请求
+ * 版本: 2.0.0
  * 作者: hy.禾一
- * 说明：使用 https://api.aliyuncs.com/meting 作为数据源
+ * 说明：使用 https://api.qijieya.cn/meting/ 作为数据源
  */
 
 // ==========================================
-// 🛡️ 自动注入防盗链破解标签
+// 🛡️
 // ==========================================
 (function injectNoReferrer() {
     if (!document.querySelector('meta[name="referrer"]')) {
@@ -14,14 +14,14 @@
         meta.name = "referrer";
         meta.content = "no-referrer";
         document.head.appendChild(meta);
-        console.log("🛡️ 已自动穿上隐身衣，防盗链已失效！");
+        console.log("🛡️");
     }
 })();
 
 // ==========================================
 // 接口配置
 // ==========================================
-const BASE_URL = 'https://api.aliyuncs.com/meting';
+const BASE_URL = 'https://api.qijieya.cn/meting/';
 
 // ==========================================
 // 工具函数：提取纯数字ID
@@ -29,7 +29,7 @@ const BASE_URL = 'https://api.aliyuncs.com/meting';
 function extractNeteaseId(link) {
     if (!link) return null;
     const strLink = String(link).trim();
-    if (strLink.includes('163cn.tv')) return null; // 拦截短链
+    if (strLink.includes('163cn.tv')) return null;
     if (/^\d+$/.test(strLink)) return strLink;
     const match = strLink.match(/id=(\d+)/) || strLink.match(/song\/(\d+)/);
     return match ? match[1] : null;
@@ -57,7 +57,6 @@ async function fetchNeteaseSongInfo(link) {
             throw new Error('请输入纯数字 ID 或标准长链接');
         }
 
-        // 用阿里云节点获取歌曲信息
         const response = await fetch(`${BASE_URL}?server=netease&type=song&id=${reqId}`);
         if (!response.ok) throw new Error(`请求失败: ${response.status}`);
 
@@ -68,19 +67,21 @@ async function fetchNeteaseSongInfo(link) {
 
         // 获取歌词
         let lyricText = '';
-        try {
-            const lrcRes = await fetch(`${BASE_URL}?server=netease&type=lrc&id=${reqId}`);
-            if (lrcRes.ok) {
-                lyricText = await lrcRes.text();
+        if (song.lrc) {
+            try {
+                const lrcRes = await fetch(song.lrc);
+                if (lrcRes.ok) {
+                    lyricText = await lrcRes.text();
+                }
+            } catch (e) {
+                console.log('歌词获取失败，跳过');
             }
-        } catch (e) {
-            console.log('歌词获取失败，跳过');
         }
 
         return {
             title: song.name || '未知歌曲',
             artist: song.artist || '未知艺术家',
-            url: song.url || '',
+            url: song.url || '',  // 这个是接口链接，不是直链
             lyrics: lyricText,
             cover: song.pic || '',
             duration: '0:00',
@@ -93,19 +94,29 @@ async function fetchNeteaseSongInfo(link) {
 }
 
 // ==========================================
-// 2. 刷新播放链接（阿里云节点返回纯文本直链）
+// 2. 刷新播放链接（两步流程）
 // ==========================================
 async function refreshSongUrl(link) {
     try {
         const reqId = extractNeteaseId(link);
         if (!reqId) return null;
 
-        const res = await fetch(`${BASE_URL}?server=netease&type=url&id=${reqId}`);
-        if (!res.ok) return null;
+        // 第一步：请求 song 接口，拿到元数据
+        const songRes = await fetch(`${BASE_URL}?server=netease&type=song&id=${reqId}`);
+        if (!songRes.ok) return null;
+        const songData = await songRes.json();
+        if (!songData || songData.length === 0) return null;
 
-        // 阿里云节点返回的是纯文本直链
-        const url = await res.text();
-        return url || null;
+        // 第二步：从 song 接口返回的 url 字段获取直链接口
+        const urlLink = songData[0]?.url;
+        if (!urlLink) return null;
+
+        // 第三步：请求直链
+        const urlRes = await fetch(urlLink);
+        if (!urlRes.ok) return null;
+        const playUrl = await urlRes.text();
+
+        return playUrl || null;
     } catch (e) {
         console.error('刷新链接失败:', e);
         return null;
@@ -128,13 +139,10 @@ async function fetchNeteasePlaylist(link) {
             throw new Error('该歌单为空，或接口暂不支持解析');
         }
 
-        // 获取歌单名称（从第一首歌的专辑信息里取，或者用默认名）
-        const playlistName = data[0]?.album || '网易云歌单';
-
         return {
-            name: playlistName,
+            name: data[0]?.album || '网易云歌单',
             creator: 'Meting API',
-            description: '阿里云公共节点解析',
+            description: '杭州节点解析',
             coverImgUrl: data[0]?.pic || '',
             trackCount: data.length,
             tracks: data.map(song => {
