@@ -211,15 +211,14 @@ function createUI() {
 }
 
 // ============================================================
-// 3. 更新视图（已加隐藏判断）
+// 3. 更新视图（已修 extension_settings 引用）
 // ============================================================
 
 function updateView() {
     const core = window.MusicPlayerCore;
     if (!core) return;
 
-    const settings = extension_settings?.['music_player'] || {};
-    if (settings.playerHidden) {
+    if (window.extension_settings?.['music_player']?.playerHidden) {
         const root = document.getElementById('player-root');
         const rhythmIcon = document.getElementById('player-rhythm-icon');
         if (root) root.style.display = 'none';
@@ -627,12 +626,11 @@ function toggleRhythmMode() {
 }
 
 // ============================================================
-// 7. 显示/隐藏 UI（已加隐藏判断）
+// 7. 显示/隐藏 UI（已修 extension_settings 引用）
 // ============================================================
 
 function showUI() {
-    const settings = extension_settings?.['music_player'] || {};
-    if (settings.playerHidden) return;
+    if (window.extension_settings?.['music_player']?.playerHidden) return;
 
     const core = window.MusicPlayerCore;
     if (!core) return;
