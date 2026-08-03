@@ -7,7 +7,7 @@
 // 状态提示
 // ============================================================
 
-let statusTimer = null;
+let helperStatusTimer = null;
 
 function showStatus(message, type = 'info', duration = 3000) {
     const statusEl = document.getElementById('player-status');
@@ -16,8 +16,8 @@ function showStatus(message, type = 'info', duration = 3000) {
         statusEl.className = `player-status status-${type}`;
         statusEl.style.opacity = '1';
 
-        clearTimeout(statusTimer);
-        statusTimer = setTimeout(() => {
+        clearTimeout(helperStatusTimer);
+        helperStatusTimer = setTimeout(() => {
             statusEl.style.opacity = '0';
         }, duration);
     }
