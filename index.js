@@ -107,38 +107,38 @@ function createExtensionPanel() {
     const html = `
         <div id="music-player-extension" class="inline-drawer">
             <div class="inline-drawer-toggle inline-drawer-header">
-                <b>🎵 音乐播放器</b>
-                <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                <b style="color: #000000;">🎵 音乐播放器</b>
+                <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down" style="color: #000000;"></div>
             </div>
             <div class="inline-drawer-content" style="display: none;">
 
                 <!-- 第一行：隐藏播放器 + 打开播放器 -->
                 <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                    <label style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 0; background: rgba(255,255,255,0.06); border-radius: 6px; cursor: pointer; border: 1px solid rgba(255,255,255,0.08); font-size: 13px; color: var(--SmartThemeBodyText, #fff);">
+                    <label style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 0; background: rgba(0,0,0,0.06); border-radius: 6px; cursor: pointer; border: 1px solid #cccccc; font-size: 13px; color: #000000;">
                         <input type="checkbox" id="player-hidden-toggle" ${settings.playerHidden ? 'checked' : ''} style="margin: 0;">
                         <span>隐藏播放器</span>
                     </label>
-                    <button type="button" id="player-show-btn" style="flex: 1; padding: 8px 0; font-size: 13px; background: rgba(255,255,255,0.06); border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; color: var(--SmartThemeBodyText, #fff);">
+                    <button type="button" id="player-show-btn" style="flex: 1; padding: 8px 0; font-size: 13px; background: rgba(0,0,0,0.06); border-radius: 6px; border: 1px solid #cccccc; cursor: pointer; color: #000000;">
                         打开播放器
                     </button>
                 </div>
 
                 <!-- 第二行：通道检测 -->
-                <button type="button" id="test-channels-btn" style="width: 100%; padding: 8px 0; font-size: 13px; background: rgba(255,255,255,0.06); border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; color: var(--SmartThemeBodyText, #fff); margin-bottom: 10px;">
+                <button type="button" id="test-channels-btn" style="width: 100%; padding: 8px 0; font-size: 13px; background: rgba(0,0,0,0.06); border-radius: 6px; border: 1px solid #cccccc; cursor: pointer; color: #000000; margin-bottom: 10px;">
                     通道检测
                 </button>
 
                 <!-- 第三行：使用说明 -->
-                <button type="button" id="show-help-btn" style="width: 100%; padding: 8px 0; font-size: 13px; background: rgba(255,255,255,0.06); border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; color: var(--SmartThemeBodyText, #fff); margin-bottom: 10px;">
+                <button type="button" id="show-help-btn" style="width: 100%; padding: 8px 0; font-size: 13px; background: rgba(0,0,0,0.06); border-radius: 6px; border: 1px solid #cccccc; cursor: pointer; color: #000000; margin-bottom: 10px;">
                     使用说明
                 </button>
 
                 <!-- 第四行：注脚 + 版本号 -->
-                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
-                    <small style="opacity: 0.35; font-size: 11px; letter-spacing: 0.5px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #e0e0e0;">
+                    <small style="opacity: 0.5; font-size: 11px; letter-spacing: 0.5px; color: #000000;">
                         𓂃𓂃𓂃𓊝𓄹𓄺𓂃𓂃𓂃 hy.禾一
                     </small>
-                    <small style="opacity: 0.35; font-size: 11px;">
+                    <small style="opacity: 0.5; font-size: 11px; color: #000000;">
                         版本：${version}
                     </small>
                 </div>
@@ -306,7 +306,6 @@ function showChannelTestDialog() {
         btn.onclick = () => {
             const platform = btn.dataset.platform;
             overlay.remove();
-            // 直接执行检测
             if (platform === 'qishui') {
                 testQishuiChannel();
             } else if (platform === 'netease') {
@@ -366,7 +365,6 @@ function showResultDialog(title, result) {
 async function testQishuiChannel() {
     showResultDialog('检测中...', '⏳ 正在检测汽水音乐通道...');
     try {
-        // 汽水音乐通道：用 qijieya 测试
         const response = await fetch('https://api.qijieya.cn/meting/?server=netease&type=song&id=1397345903');
         if (response.ok) {
             const data = await response.json();
@@ -384,7 +382,6 @@ async function testQishuiChannel() {
 async function testNeteaseChannel() {
     showResultDialog('检测中...', '⏳ 正在检测网易云通道...');
     try {
-        // 网易云通道：用 bugpk 测试
         const response = await fetch('https://api.bugpk.com/api/163_music?type=json&url=https://music.163.com/song?id=1397345903');
         if (response.ok) {
             const data = await response.json();
