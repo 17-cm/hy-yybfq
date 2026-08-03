@@ -112,7 +112,7 @@ function createExtensionPanel() {
             </div>
             <div class="inline-drawer-content" style="display: none;">
 
-                <!-- 第一行：隐藏播放器 + 打开播放器（并排） -->
+                <!-- 第一行：隐藏播放器 + 打开播放器 -->
                 <div style="display: flex; gap: 8px; margin-bottom: 10px;">
                     <label style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 0; background: rgba(255,255,255,0.06); border-radius: 6px; cursor: pointer; border: 1px solid rgba(255,255,255,0.08); font-size: 13px; color: var(--SmartThemeBodyText, #fff);">
                         <input type="checkbox" id="player-hidden-toggle" ${settings.playerHidden ? 'checked' : ''} style="margin: 0;">
@@ -241,7 +241,7 @@ function showChannelTestDialog() {
                 <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #1a1a1a;">选择检测平台</h2>
             </div>
             <div style="display: flex; flex-direction: column; gap: 10px;">
-                <button class="channel-test-option" data-type="qishui" style="
+                <button class="platform-btn" data-platform="qishui" style="
                     padding: 12px;
                     background: #f5f5f5;
                     border: 1px solid #e8e8e8;
@@ -252,7 +252,7 @@ function showChannelTestDialog() {
                     color: #1a1a1a;
                     transition: all 0.2s;
                 ">汽水音乐通道检测</button>
-                <button class="channel-test-option" data-type="netease" style="
+                <button class="platform-btn" data-platform="netease" style="
                     padding: 12px;
                     background: #f5f5f5;
                     border: 1px solid #e8e8e8;
@@ -277,35 +277,24 @@ function showChannelTestDialog() {
     `;
     document.body.appendChild(overlay);
 
-    // 悬停效果
-    overlay.querySelectorAll('.channel-test-option').forEach(btn => {
-        btn.addEventListener('mouseenter', () => {
-            btn.style.background = '#e8e8e8';
-        });
-        btn.addEventListener('mouseleave', () => {
-            btn.style.background = '#f5f5f5';
-        });
+    overlay.querySelectorAll('.platform-btn').forEach(btn => {
+        btn.addEventListener('mouseenter', () => { btn.style.background = '#e8e8e8'; });
+        btn.addEventListener('mouseleave', () => { btn.style.background = '#f5f5f5'; });
+        btn.onclick = () => {
+            const platform = btn.dataset.platform;
+            overlay.remove();
+            if (platform === 'qishui') showQishuiChannelDialog();
+            else if (platform === 'netease') showNeteaseChannelDialog();
+        };
     });
 
     overlay.querySelector('#test-dialog-cancel').onclick = () => overlay.remove();
     overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-
-    overlay.querySelectorAll('.channel-test-option').forEach(btn => {
-        btn.onclick = () => {
-            overlay.remove();
-            const type = btn.dataset.type;
-            if (type === 'qishui') {
-                showQishuiChannelDialog();
-            } else if (type === 'netease') {
-                showNeteaseChannelDialog();
-            }
-        };
-    });
 }
 
 function showQishuiChannelDialog() {
     const channels = window.CHANNELS || [];
-    const qishuiChannels = channels.filter(c => c.name === 'qijieya' || c.name === 'injahow');
+    const qishuiChannels = channels.filter(c => c.platform === 'qishui');
 
     const overlay = createOverlay();
     overlay.innerHTML = `
@@ -330,7 +319,7 @@ function showQishuiChannelDialog() {
             </div>
             <div style="display: flex; flex-direction: column; gap: 10px;">
                 ${qishuiChannels.map((c, idx) => `
-                    <button class="channel-test-item" data-channel="${c.name}" data-idx="${idx}" style="
+                    <button class="channel-test-item" data-channel="${c.name}" style="
                         padding: 12px;
                         background: #f5f5f5;
                         border: 1px solid #e8e8e8;
@@ -356,12 +345,8 @@ function showQishuiChannelDialog() {
     document.body.appendChild(overlay);
 
     overlay.querySelectorAll('.channel-test-item').forEach(btn => {
-        btn.addEventListener('mouseenter', () => {
-            btn.style.background = '#e8e8e8';
-        });
-        btn.addEventListener('mouseleave', () => {
-            btn.style.background = '#f5f5f5';
-        });
+        btn.addEventListener('mouseenter', () => { btn.style.background = '#e8e8e8'; });
+        btn.addEventListener('mouseleave', () => { btn.style.background = '#f5f5f5'; });
         btn.onclick = async () => {
             const channelName = btn.dataset.channel;
             const channel = window.CHANNELS.find(c => c.name === channelName);
@@ -380,7 +365,7 @@ function showQishuiChannelDialog() {
 
 function showNeteaseChannelDialog() {
     const channels = window.CHANNELS || [];
-    const neteaseChannels = channels.filter(c => c.type === 'meting' || c.type === 'bugpk' || c.type === 'byfuns');
+    const neteaseChannels = channels.filter(c => c.platform === 'netease');
 
     const overlay = createOverlay();
     overlay.innerHTML = `
@@ -405,7 +390,7 @@ function showNeteaseChannelDialog() {
             </div>
             <div style="display: flex; flex-direction: column; gap: 10px;">
                 ${neteaseChannels.map((c, idx) => `
-                    <button class="channel-test-item" data-channel="${c.name}" data-idx="${idx}" style="
+                    <button class="channel-test-item" data-channel="${c.name}" style="
                         padding: 12px;
                         background: #f5f5f5;
                         border: 1px solid #e8e8e8;
@@ -431,12 +416,8 @@ function showNeteaseChannelDialog() {
     document.body.appendChild(overlay);
 
     overlay.querySelectorAll('.channel-test-item').forEach(btn => {
-        btn.addEventListener('mouseenter', () => {
-            btn.style.background = '#e8e8e8';
-        });
-        btn.addEventListener('mouseleave', () => {
-            btn.style.background = '#f5f5f5';
-        });
+        btn.addEventListener('mouseenter', () => { btn.style.background = '#e8e8e8'; });
+        btn.addEventListener('mouseleave', () => { btn.style.background = '#f5f5f5'; });
         btn.onclick = async () => {
             const channelName = btn.dataset.channel;
             const channel = window.CHANNELS.find(c => c.name === channelName);
