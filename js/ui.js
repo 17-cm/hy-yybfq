@@ -211,12 +211,21 @@ function createUI() {
 }
 
 // ============================================================
-// 3. 更新视图
+// 3. 更新视图（已加隐藏判断）
 // ============================================================
 
 function updateView() {
     const core = window.MusicPlayerCore;
     if (!core) return;
+
+    const settings = extension_settings?.['music_player'] || {};
+    if (settings.playerHidden) {
+        const root = document.getElementById('player-root');
+        const rhythmIcon = document.getElementById('player-rhythm-icon');
+        if (root) root.style.display = 'none';
+        if (rhythmIcon) rhythmIcon.style.display = 'none';
+        return;
+    }
 
     const root = document.getElementById('player-root');
     const rootRgb = document.getElementById('player-rgb-border');
@@ -497,8 +506,9 @@ function renderList() {
     core.playlist.forEach((t, i) => {
         const item = document.createElement('div');
         item.className = `list-item ${i === core.index ? 'active' : ''}`;
+        const sourceLabel = t.source === 'qishui' ? '🍹' : '🎵';
         item.innerHTML = `
-            <div class="item-info"><b>${t.title} - ${t.artist}</b></div>
+            <div class="item-info"><b>${t.title} - ${t.artist}</b> <span style="opacity:0.4;font-size:11px;">${sourceLabel}</span></div>
             <div class="item-btns">
                 <button type="button" class="btn-lyrics">歌词</button>
                 <button type="button" class="btn-del">×</button>
@@ -536,11 +546,12 @@ function renderImportHistory() {
     let html = '';
     core.state.importHistory.forEach((history) => {
         const time = history.time;
+        const sourceLabel = history.data.source === 'qishui' ? '🍹' : '🎵';
 
         if (history.type === 'single') {
             html += `
                 <div class="history-item">
-                    <div class="history-icon">🎵</div>
+                    <div class="history-icon">${sourceLabel}</div>
                     <div class="history-content">
                         <div class="history-title">${history.data.title}</div>
                         <div class="history-sub">${history.data.artist}</div>
@@ -616,10 +627,13 @@ function toggleRhythmMode() {
 }
 
 // ============================================================
-// 7. 显示/隐藏 UI
+// 7. 显示/隐藏 UI（已加隐藏判断）
 // ============================================================
 
 function showUI() {
+    const settings = extension_settings?.['music_player'] || {};
+    if (settings.playerHidden) return;
+
     const core = window.MusicPlayerCore;
     if (!core) return;
 
@@ -645,55 +659,166 @@ function hideUI() {
 }
 
 // ============================================================
-// 8. 添加歌曲/歌单（调用 API）
+// 8. 添加歌曲（含来源选择）
 // ============================================================
 
 function addUrlSong() {
     if (typeof window.showInputDialog !== 'function') return;
 
-    window.showInputDialog(
-        '添加单曲',
-        '请输入网易云歌曲链接\n支持格式：\n• music.163.com/song?id=xxx\n• 163cn.tv/xxx（短链接）',
-        async (input) => {
-            if (!window.isNeteaseLink || !window.isNeteaseLink(input)) {
-                window.showStatus('请输入有效的网易云链接', 'error');
-                return;
-            }
+    // ===== 第一步：弹出选择界面 =====
+    const overlay = document.createElement('div');
+    overlay.className = 'player-dialog-overlay';
+    overlay.style.cssText = 'position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 2147483647 !important; display: flex !important; justify-content: center !important; align-items: center !important; background: rgba(0, 0, 0, 0.8) !important; margin: 0 !important; padding: 20px !important; box-sizing: border-box !important;';
 
-            window.showStatus('正在解析链接...', 'info');
+    overlay.innerHTML = `
+        <div class="player-dialog" style="
+            background: #2a2a2a !important;
+            border-radius: 16px !important;
+            padding: 25px !important;
+            max-width: 90% !important;
+            width: 340px !important;
+            text-align: center !important;
+            color: #fff !important;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.5) !important;
+            margin: auto !important;
+            position: relative !important;
+            z-index: 2147483647 !important;
+        ">
+            <div class="dialog-title" style="font-size: 18px; font-weight: bold; margin-bottom: 20px;">选择音乐来源</div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button id="source-netease" class="source-btn" style="
+                    padding: 14px;
+                    background: rgba(255,255,255,0.08);
+                    border: 2px solid rgba(255,255,255,0.15);
+                    border-radius: 12px;
+                    color: #fff;
+                    font-size: 16px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                ">🎵 网易云音乐</button>
+                <button id="source-qishui" class="source-btn" style="
+                    padding: 14px;
+                    background: rgba(255,255,255,0.08);
+                    border: 2px solid rgba(255,255,255,0.15);
+                    border-radius: 12px;
+                    color: #fff;
+                    font-size: 16px;
+                    font-weight: bold;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                ">🍹 汽水音乐</button>
+                <button id="source-cancel" style="
+                    margin-top: 8px;
+                    background: transparent;
+                    border: 1px solid rgba(255,255,255,0.25);
+                    color: rgba(255,255,255,0.6);
+                    padding: 10px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    transition: all 0.2s;
+                ">取消</button>
+            </div>
+        </div>
+    `;
 
-            try {
-                const songInfo = await window.fetchNeteaseSongInfo(input);
-                const core = window.MusicPlayerCore;
+    document.body.appendChild(overlay);
 
-                core.playlist.push({
-                    title: songInfo.title,
-                    artist: songInfo.artist,
-                    url: songInfo.url,
-                    lyrics: songInfo.lyrics || '',
-                    cover: songInfo.cover,
-                    neteaseId: songInfo.neteaseId
-                });
+    const closeOverlay = () => overlay.remove();
 
-                core.addImportHistory('single', {
-                    title: songInfo.title,
-                    artist: songInfo.artist,
-                    link: input
-                });
-
-                core.saveData();
-                renderList();
-                window.showStatus(`成功添加: ${songInfo.title}`, 'success');
-
-                if (core.index === -1) {
-                    core.play(core.playlist.length - 1);
+    overlay.querySelector('#source-netease').onclick = () => {
+        closeOverlay();
+        window.showInputDialog(
+            '添加网易云单曲',
+            '请输入网易云歌曲链接\n支持格式：\n• music.163.com/song?id=xxx\n• 163cn.tv/xxx（短链接）',
+            async (input) => {
+                if (!window.isNeteaseLink || !window.isNeteaseLink(input)) {
+                    window.showStatus('请输入有效的网易云链接', 'error');
+                    return;
                 }
-            } catch (error) {
-                window.showStatus(`添加失败: ${error.message}`, 'error');
+                await doAddSong(input, 'netease');
             }
-        }
-    );
+        );
+    };
+
+    overlay.querySelector('#source-qishui').onclick = () => {
+        closeOverlay();
+        window.showInputDialog(
+            '添加汽水单曲',
+            '请输入汽水音乐分享链接',
+            async (input) => {
+                if (!input.includes('qishui') && !input.includes('douyin') && !input.includes('music')) {
+                    window.showStatus('请输入有效的汽水音乐链接', 'error');
+                    return;
+                }
+                await doAddSong(input, 'qishui');
+            }
+        );
+    };
+
+    overlay.querySelector('#source-cancel').onclick = closeOverlay;
+    overlay.onclick = (e) => { if (e.target === overlay) closeOverlay(); };
 }
+
+// ============================================================
+// 实际执行添加（根据来源调用不同接口）
+// ============================================================
+async function doAddSong(input, source) {
+    const core = window.MusicPlayerCore;
+    if (!core) {
+        window.showStatus('播放器未初始化', 'error');
+        return;
+    }
+
+    window.showStatus(`正在解析${source === 'netease' ? '网易云' : '汽水音乐'}链接...`, 'info');
+
+    try {
+        let songInfo;
+        if (source === 'netease') {
+            if (typeof window.fetchNeteaseSongInfo !== 'function') {
+                throw new Error('网易云解析模块未加载');
+            }
+            songInfo = await window.fetchNeteaseSongInfo(input);
+        } else {
+            if (typeof window.fetchQishuiSongInfo !== 'function') {
+                throw new Error('汽水音乐解析模块未加载');
+            }
+            songInfo = await window.fetchQishuiSongInfo(input);
+        }
+
+        core.playlist.push({
+            title: songInfo.title,
+            artist: songInfo.artist,
+            url: songInfo.url,
+            lyrics: songInfo.lyrics || '',
+            cover: songInfo.cover || '',
+            neteaseId: songInfo.neteaseId || null,
+            source: source
+        });
+
+        core.addImportHistory('single', {
+            title: songInfo.title,
+            artist: songInfo.artist,
+            link: input,
+            source: source
+        });
+
+        core.saveData();
+        renderList();
+        window.showStatus(`成功添加: ${songInfo.title}`, 'success');
+
+        if (core.index === -1) {
+            core.play(core.playlist.length - 1);
+        }
+    } catch (error) {
+        window.showStatus(`添加失败: ${error.message}`, 'error');
+    }
+}
+
+// ============================================================
+// 9. 添加歌单（仅网易云）
+// ============================================================
 
 function addPlaylist() {
     if (typeof window.showInputDialog !== 'function') return;
@@ -767,7 +892,8 @@ async function importPlaylistTracks(playlist, link) {
                 url: songInfo.url,
                 lyrics: songInfo.lyrics || '',
                 cover: track.picUrl || songInfo.cover,
-                neteaseId: track.id.toString()
+                neteaseId: track.id.toString(),
+                source: 'netease'
             });
 
             addedCount++;
@@ -805,7 +931,7 @@ async function importPlaylistTracks(playlist, link) {
 }
 
 // ============================================================
-// 9. 事件绑定（完整版）
+// 10. 事件绑定
 // ============================================================
 
 function bindEvents() {
