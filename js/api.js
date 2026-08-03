@@ -1,23 +1,19 @@
 /**
  * api.js - 音乐播放器网络请求模块
- * 版本: Meting-API
+ * 版本: Paugram 极速直连版 (最终定稿)
  * 作者: hy.禾一
  */
 
-// 你找到的神级 API 地址 (如果失效，可换成 musicapi.aliyuncs.com/meting)
-const BASE_URL = 'https://api.aliyuncs.com/meting';
+// 全网最干净、最适合前端直连的 API 节点
+const BASE_URL = 'https://api.paugram.com/netease/';
 
 // ==========================================
-// 工具函数：提取纯数字 ID，拦截恶心短链
+// 工具函数：只允许纯数字，拦截所有短链
 // ==========================================
 function extractNeteaseId(link) {
     if (!link) return null;
     const strLink = String(link).trim();
-    
-    // 如果是短链接，果断拦截，提示用户用数字
-    if (strLink.includes('163cn.tv')) return null; 
-    
-    // 提取出纯数字
+    if (strLink.includes('163cn.tv')) return null; // 拦截手机端短链
     if (/^\d+$/.test(strLink)) return strLink;
     const match = strLink.match(/id=(\d+)/) || strLink.match(/song\/(\d+)/);
     return match ? match[1] : null; 
@@ -25,7 +21,7 @@ function extractNeteaseId(link) {
 
 function isNeteaseLink(url) {
     const str = String(url).trim();
-    if (str.includes('163cn.tv')) return false; // 拒绝短链
+    if (str.includes('163cn.tv')) return false;
     return /^\d+$/.test(str) || str.includes('163');
 }
 
@@ -36,55 +32,37 @@ function isPlaylistLink(url) {
 }
 
 // ==========================================
-// 1. 获取歌曲全套信息 (Meting API)
+// 1. 获取歌曲全套信息 (一击必杀，秒出数据)
 // ==========================================
 async function fetchNeteaseSongInfo(link) {
     try {
         const reqId = extractNeteaseId(link);
         if (!reqId) {
-            throw new Error('不支持手机端分享的短链接，请直接输入纯数字ID！');
+            throw new Error('请输入纯数字 ID 或标准长链接');
         }
 
-        // Meting API 魔法：type=song 一步获取所有信息
-        const targetUrl = `${BASE_URL}?server=netease&type=song&id=${reqId}`;
-        const response = await fetch(targetUrl);
+        // 发送最基础的 GET 请求，彻底告别跨域拦截
+        const response = await fetch(`${BASE_URL}?id=${reqId}`);
 
-        if (!response.ok) throw new Error(`网络请求失败: HTTP ${response.status}`);
-        
+        if (!response.ok) {
+            throw new Error(`网络请求失败: ${response.status}`);
+        }
+
         const data = await response.json();
-        
-        // Meting 会返回一个数组，取第一个
-        if (!data || data.length === 0) throw new Error('未找到歌曲，可能是VIP限制或ID错误');
-        
-        const song = data[0];
-        if (!song.url) throw new Error('未获取到播放链接');
 
-        // 尝试获取歌词 (Meting 的 lrc 字段可能是一个链接，也可能是原始文本)
-        let lyricText = '';
-        try {
-            // 保险起见，单独请求一次歌词接口
-            const lrcRes = await fetch(`${BASE_URL}?server=netease&type=lrc&id=${reqId}`);
-            const lrcData = await lrcRes.text();
-            
-            // 尝试解析JSON（部分节点返回JSON格式），如果报错就说明是纯文本
-            try {
-                const parsed = JSON.parse(lrcData);
-                lyricText = parsed.lyric || parsed.lrc || lrcData;
-            } catch(e) {
-                lyricText = lrcData; // 是纯文本歌词
-            }
-        } catch (e) {
-            console.log('歌词获取失败，不影响播放');
+        // Paugram 接口若找不到歌或无版权，通常无 link 字段
+        if (!data.link) {
+            throw new Error('歌曲无版权、为VIP专享或未获取到播放链接');
         }
 
         return {
-            title: song.name || '未知歌曲',
-            artist: song.artist || '未知艺术家',
-            url: song.url,
-            lyrics: lyricText,
-            cover: song.pic || '',
+            title: data.title || '未知歌曲',
+            artist: data.artist || '未知艺术家',
+            url: data.link,                 // 官方直链
+            lyrics: data.lyric || '',       // 直接返回完整歌词文本
+            cover: data.cover || '',        // 官方高清封面直链
             duration: '0:00',
-            neteaseId: reqId
+            neteaseId: data.id || reqId
         };
     } catch (error) {
         console.error('单曲解析失败:', error);
@@ -93,56 +71,56 @@ async function fetchNeteaseSongInfo(link) {
 }
 
 // ==========================================
-// 2. 刷新播放链接 
+// 2. 刷新播放链接 (直接使用官方直链拼凑)
 // ==========================================
 async function refreshSongUrl(link) {
     try {
         const reqId = extractNeteaseId(link);
         if (!reqId) return null;
-
-        const res = await fetch(`${BASE_URL}?server=netease&type=url&id=${reqId}`);
-        const data = await res.json();
-        
-        // type=url 接口可能返回带有 url 字段的对象或直接是链接
-        return data.url || (data[0] && data[0].url) || null;
+        // 既然 Paugram 给的是官方 outer 直链，我们直接拼凑即可，连网络请求都省了！
+        return `https://music.163.com/song/media/outer/url?id=${reqId}.mp3`;
     } catch (e) {
         return null;
     }
 }
 
 // ==========================================
-// 3. 获取歌单全量歌曲 (Meting API 绝技)
+// 3. 获取歌单
 // ==========================================
 async function fetchNeteasePlaylist(link) {
     try {
         const reqId = extractNeteaseId(link);
         if (!reqId) throw new Error('请输入纯数字 ID 或长链接');
 
-        // Meting API 魔法：type=playlist 直接把歌单里所有的歌全解出来！
-        const targetUrl = `${BASE_URL}?server=netease&type=playlist&id=${reqId}`;
-        const response = await fetch(targetUrl);
+        // 请求歌单数据
+        const response = await fetch(`${BASE_URL}?id=${reqId}&playlist=true`);
         
-        if (!response.ok) throw new Error(`网络请求失败: HTTP ${response.status}`);
-        
+        if (!response.ok) throw new Error(`网络请求失败: ${response.status}`);
         const data = await response.json();
+
+        // 兼容处理：将返回的数据统一转成数组
+        const tracks = Array.isArray(data) ? data : (data.tracks || []);
         
-        if (!data || data.length === 0) {
-            throw new Error('歌单为空或解析失败');
+        if (tracks.length === 0) {
+            if (data.title && data.link) {
+                tracks.push(data); // 只有一首歌的情况
+            } else {
+                throw new Error('该歌单为空，或接口暂不支持此大型歌单');
+            }
         }
 
-        // Meting 返回的是一个歌曲数组
         return {
-            name: "网易云导入歌单", // Meting playlist接口直接返回歌曲列表，不包含歌单名字
-            creator: "Meting API",
-            description: "通过公共接口解析",
-            coverImgUrl: data[0]?.pic || '', // 用第一首歌的封面当歌单封面
-            trackCount: data.length,
-            tracks: data.map(song => ({
-                id: song.id || reqId, // 防止某些节点不返回歌曲ID
-                name: song.name || '未知歌曲',
-                artists: song.artist || '未知艺术家',
-                album: '未知专辑',
-                picUrl: song.pic || ''
+            name: data.name || data.title || '网易云导入歌单',
+            creator: 'Paugram API',
+            description: '通过公共接口解析',
+            coverImgUrl: data.cover || tracks[0]?.cover || '',
+            trackCount: tracks.length,
+            tracks: tracks.map(track => ({
+                id: track.id,
+                name: track.title || '未知歌曲',
+                artists: track.artist || '未知艺术家',
+                album: track.album || '',
+                picUrl: track.cover || ''
             }))
         };
     } catch (error) {
