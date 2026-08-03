@@ -1,8 +1,21 @@
 /**
  * api.js - 音乐播放器网络请求模块
- * 版本: Meting-API (修复版：完整音频流 + 修复歌单逻辑)
+ * 版本: Meting-API (无敌隐身版：破解防盗链，告别几秒断流)
  * 作者: hy.禾一
  */
+
+// ==========================================
+// 🛡️ 核心黑科技：自动注入防盗链破解标签
+// ==========================================
+(function injectNoReferrer() {
+    if (!document.querySelector('meta[name="referrer"]')) {
+        const meta = document.createElement('meta');
+        meta.name = "referrer";
+        meta.content = "no-referrer";
+        document.head.appendChild(meta);
+        console.log("🛡️ 已自动穿上隐身衣，网易云防盗链已失效！");
+    }
+})();
 
 // 极度稳定的神级开源节点
 const BASE_URL = 'https://api.injahow.cn/meting/';
@@ -41,7 +54,6 @@ async function fetchNeteaseSongInfo(link) {
             throw new Error('请输入纯数字 ID 或标准长链接');
         }
 
-        // 请求 Meting 单曲接口
         const response = await fetch(`${BASE_URL}?server=netease&type=song&id=${reqId}`);
         if (!response.ok) throw new Error(`请求失败: ${response.status}`);
         
@@ -50,7 +62,6 @@ async function fetchNeteaseSongInfo(link) {
         
         const song = data[0];
 
-        // 拿歌词：Meting 返回的是一个歌词请求网址，我们必须再请求一次拿到纯文本
         let lyricText = '';
         if (song.lrc) {
             try {
@@ -64,8 +75,8 @@ async function fetchNeteaseSongInfo(link) {
         return {
             title: song.name || '未知歌曲',
             artist: song.artist || '未知艺术家',
-            url: song.url,              // Meting 后台解析的完整版音频链接
-            lyrics: lyricText,          // 抓取到的真实歌词文本
+            url: song.url,              
+            lyrics: lyricText,          
             cover: song.pic || '',
             duration: '0:00',
             neteaseId: reqId
@@ -83,7 +94,6 @@ async function refreshSongUrl(link) {
     try {
         const reqId = extractNeteaseId(link);
         if (!reqId) return null;
-        // 使用 Meting 的 url 接口获取最新直链
         const res = await fetch(`${BASE_URL}?server=netease&type=url&id=${reqId}`);
         const data = await res.json();
         return data.url || (data[0] && data[0].url) || null;
@@ -93,14 +103,13 @@ async function refreshSongUrl(link) {
 }
 
 // ==========================================
-// 3. 获取歌单 (修复逻辑：只获取花名册)
+// 3. 获取歌单
 // ==========================================
 async function fetchNeteasePlaylist(link) {
     try {
         const reqId = extractNeteaseId(link);
         if (!reqId) throw new Error('请输入纯数字 ID 或长链接');
 
-        // 请求 Meting 歌单接口
         const response = await fetch(`${BASE_URL}?server=netease&type=playlist&id=${reqId}`);
         if (!response.ok) throw new Error(`网络请求失败: ${response.status}`);
         
@@ -109,17 +118,13 @@ async function fetchNeteasePlaylist(link) {
             throw new Error('该歌单为空，或接口暂不支持解析');
         }
 
-        // 把 Meting 吐出来的数组，转换为 UI 期待的“花名册”格式
         return {
             name: '网易云导入歌单', 
             creator: 'Meting API',
             description: '公共接口解析',
             coverImgUrl: data[0]?.pic || '',
             trackCount: data.length,
-            // 生成 UI 期待的 tracks 数组
             tracks: data.map(song => {
-                // Meting 返回的 url 长这样：https://api.../meting/?server=netease&type=url&id=12345
-                // 我们从中提取出歌曲真实的 ID，交给 UI 去一首一首拉取！
                 const idMatch = song.url ? song.url.match(/id=(\d+)/) : null;
                 const songId = idMatch ? idMatch[1] : reqId;
 
@@ -130,7 +135,7 @@ async function fetchNeteasePlaylist(link) {
                     album: '未知专辑',
                     picUrl: song.pic || ''
                 };
-            }).filter(t => t.id) // 过滤掉没有 ID 的废数据
+            }).filter(t => t.id)
         };
     } catch (error) {
         console.error('获取歌单失败:', error);
