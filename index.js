@@ -1,6 +1,6 @@
 /**
  * 音乐播放器扩展入口
- * 版本: 1.0.7
+ * 版本: 1.0.6
  * 作者: hy.禾一
  */
 
@@ -78,7 +78,23 @@ function saveExtensionSettings() {
 }
 
 // ============================================================
-// 扩展面板
+// 读取版本号
+// ============================================================
+
+function getVersion() {
+    const manifest = document.querySelector('link[rel="manifest"]');
+    if (manifest) {
+        try {
+            const href = manifest.href;
+            const versionMatch = href.match(/v=([\d.]+)/);
+            if (versionMatch) return versionMatch[1];
+        } catch (e) {}
+    }
+    return '1.0.7';
+}
+
+// ============================================================
+// 创建扩展面板
 // ============================================================
 
 function createExtensionPanel() {
@@ -86,6 +102,7 @@ function createExtensionPanel() {
     if (!container) return;
 
     const settings = getExtensionSettings();
+    const version = getVersion();
 
     const html = `
         <div id="music-player-extension" class="inline-drawer">
@@ -95,43 +112,36 @@ function createExtensionPanel() {
             </div>
             <div class="inline-drawer-content" style="display: none;">
 
-                <!-- 1. 隐藏播放器 -->
-                <div style="margin-bottom: 10px;">
-                    <label style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="player-hidden-toggle" ${settings.playerHidden ? 'checked' : ''}>
+                <!-- 第一行：隐藏播放器 + 打开播放器（并排） -->
+                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                    <label style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 0; background: rgba(255,255,255,0.06); border-radius: 6px; cursor: pointer; border: 1px solid rgba(255,255,255,0.08); font-size: 13px; color: var(--SmartThemeBodyText, #fff);">
+                        <input type="checkbox" id="player-hidden-toggle" ${settings.playerHidden ? 'checked' : ''} style="margin: 0;">
                         <span>隐藏播放器</span>
                     </label>
+                    <button type="button" id="player-show-btn" style="flex: 1; padding: 8px 0; font-size: 13px; background: rgba(255,255,255,0.06); border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; color: var(--SmartThemeBodyText, #fff);">
+                        打开播放器
+                    </button>
                 </div>
 
-                <!-- 2. 检测通道可用性 -->
-                <button type="button" id="test-channels-btn" class="menu_button" style="width: 100%; margin-bottom: 8px;">
-                    <i class="fa-solid fa-plug"></i> 检测通道可用性
+                <!-- 第二行：通道检测 -->
+                <button type="button" id="test-channels-btn" style="width: 100%; padding: 8px 0; font-size: 13px; background: rgba(255,255,255,0.06); border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; color: var(--SmartThemeBodyText, #fff); margin-bottom: 10px;">
+                    通道检测
                 </button>
-                <div id="channel-test-result" style="
-                    margin-bottom: 10px;
-                    font-size: 12px;
-                    opacity: 0.8;
-                    max-height: 200px;
-                    overflow-y: auto;
-                    background: rgba(0,0,0,0.15);
-                    border-radius: 8px;
-                    padding: 8px 12px;
-                    display: none;
-                    line-height: 1.8;
-                    color: var(--SmartThemeBodyText, #eee);
-                "></div>
 
-                <!-- 3. 注脚 -->
-                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06); text-align: center; margin-bottom: 10px;">
+                <!-- 第三行：使用说明 -->
+                <button type="button" id="show-help-btn" style="width: 100%; padding: 8px 0; font-size: 13px; background: rgba(255,255,255,0.06); border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); cursor: pointer; color: var(--SmartThemeBodyText, #fff); margin-bottom: 10px;">
+                    使用说明
+                </button>
+
+                <!-- 第四行：注脚 + 版本号 -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);">
                     <small style="opacity: 0.35; font-size: 11px; letter-spacing: 0.5px;">
                         𓂃𓂃𓂃𓊝𓄹𓄺𓂃𓂃𓂃 hy.禾一
                     </small>
+                    <small style="opacity: 0.35; font-size: 11px;">
+                        版本：${version}
+                    </small>
                 </div>
-
-                <!-- 4. 使用说明 -->
-                <button type="button" id="show-help-btn" class="menu_button" style="width: 100%;">
-                    <i class="fa-solid fa-question-circle"></i> 使用说明
-                </button>
 
             </div>
         </div>
@@ -163,6 +173,7 @@ function createExtensionPanel() {
         });
     }
 
+    // 隐藏播放器
     const hiddenToggle = document.getElementById('player-hidden-toggle');
     if (hiddenToggle) {
         hiddenToggle.addEventListener('change', (e) => {
@@ -178,6 +189,20 @@ function createExtensionPanel() {
         });
     }
 
+    // 打开播放器
+    const showBtn = document.getElementById('player-show-btn');
+    if (showBtn) {
+        showBtn.addEventListener('click', () => {
+            const settings = getExtensionSettings();
+            settings.playerHidden = false;
+            extension_settings[EXTENSION_NAME] = settings;
+            saveExtensionSettings();
+            if (typeof window.showUI === 'function') window.showUI();
+            const toggle = document.getElementById('player-hidden-toggle');
+            if (toggle) toggle.checked = false;
+        });
+    }
+
     const helpBtn = document.getElementById('show-help-btn');
     if (helpBtn) {
         helpBtn.addEventListener('click', showHelp);
@@ -185,76 +210,295 @@ function createExtensionPanel() {
 
     const testBtn = document.getElementById('test-channels-btn');
     if (testBtn) {
-        testBtn.addEventListener('click', testChannels);
+        testBtn.addEventListener('click', showChannelTestDialog);
     }
 }
 
 // ============================================================
-// 通道检测
+// 通道检测系统
 // ============================================================
 
-async function testChannels() {
-    const resultEl = document.getElementById('channel-test-result');
-    if (!resultEl) return;
+function showChannelTestDialog() {
+    const overlay = createOverlay();
+    overlay.innerHTML = `
+        <div class="help-dialog" style="
+            background: #ffffff;
+            color: #1a1a1a;
+            border-radius: 24px;
+            padding: 32px 28px 24px;
+            max-width: 380px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            margin: auto;
+            z-index: 1000000;
+            border: 2px solid #1a1a1a;
+            line-height: 1.6;
+        ">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #1a1a1a;">选择检测平台</h2>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button class="channel-test-option" data-type="qishui" style="
+                    padding: 12px;
+                    background: #f5f5f5;
+                    border: 1px solid #e8e8e8;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    font-size: 15px;
+                    font-weight: 500;
+                    color: #1a1a1a;
+                    transition: all 0.2s;
+                ">汽水音乐通道检测</button>
+                <button class="channel-test-option" data-type="netease" style="
+                    padding: 12px;
+                    background: #f5f5f5;
+                    border: 1px solid #e8e8e8;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    font-size: 15px;
+                    font-weight: 500;
+                    color: #1a1a1a;
+                    transition: all 0.2s;
+                ">网易云通道检测</button>
+                <button id="test-dialog-cancel" style="
+                    margin-top: 6px;
+                    background: none;
+                    border: none;
+                    color: #999;
+                    cursor: pointer;
+                    font-size: 13px;
+                    padding: 8px;
+                ">取消</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
 
-    resultEl.style.display = 'block';
-    resultEl.innerHTML = '🔄 正在检测通道...';
+    // 悬停效果
+    overlay.querySelectorAll('.channel-test-option').forEach(btn => {
+        btn.addEventListener('mouseenter', () => {
+            btn.style.background = '#e8e8e8';
+        });
+        btn.addEventListener('mouseleave', () => {
+            btn.style.background = '#f5f5f5';
+        });
+    });
 
+    overlay.querySelector('#test-dialog-cancel').onclick = () => overlay.remove();
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+    overlay.querySelectorAll('.channel-test-option').forEach(btn => {
+        btn.onclick = () => {
+            overlay.remove();
+            const type = btn.dataset.type;
+            if (type === 'qishui') {
+                showQishuiChannelDialog();
+            } else if (type === 'netease') {
+                showNeteaseChannelDialog();
+            }
+        };
+    });
+}
+
+function showQishuiChannelDialog() {
     const channels = window.CHANNELS || [];
-    if (channels.length === 0) {
-        resultEl.innerHTML = '❌ 未找到通道配置，请检查 api.js 是否加载';
-        return;
-    }
+    const qishuiChannels = channels.filter(c => c.name === 'qijieya' || c.name === 'injahow');
 
-    let results = [];
-    for (const channel of channels) {
-        const statusText = await testSingleChannel(channel);
-        results.push(`${channel.name}：${statusText}`);
-    }
-    resultEl.innerHTML = results.join('<br>');
+    const overlay = createOverlay();
+    overlay.innerHTML = `
+        <div class="help-dialog" style="
+            background: #ffffff;
+            color: #1a1a1a;
+            border-radius: 24px;
+            padding: 32px 28px 24px;
+            max-width: 380px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            margin: auto;
+            z-index: 1000000;
+            border: 2px solid #1a1a1a;
+            line-height: 1.6;
+        ">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #1a1a1a;">汽水音乐通道</h2>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                ${qishuiChannels.map((c, idx) => `
+                    <button class="channel-test-item" data-channel="${c.name}" data-idx="${idx}" style="
+                        padding: 12px;
+                        background: #f5f5f5;
+                        border: 1px solid #e8e8e8;
+                        border-radius: 12px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        color: #1a1a1a;
+                        transition: all 0.2s;
+                    ">通道${idx + 1} 检测</button>
+                `).join('')}
+                <button id="test-dialog-back" style="
+                    margin-top: 6px;
+                    background: none;
+                    border: none;
+                    color: #999;
+                    cursor: pointer;
+                    font-size: 13px;
+                    padding: 8px;
+                ">返回</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+
+    overlay.querySelectorAll('.channel-test-item').forEach(btn => {
+        btn.addEventListener('mouseenter', () => {
+            btn.style.background = '#e8e8e8';
+        });
+        btn.addEventListener('mouseleave', () => {
+            btn.style.background = '#f5f5f5';
+        });
+        btn.onclick = async () => {
+            const channelName = btn.dataset.channel;
+            const channel = window.CHANNELS.find(c => c.name === channelName);
+            overlay.remove();
+            const result = await testSingleChannel(channel);
+            showResultDialog(channelName, result);
+        };
+    });
+
+    overlay.querySelector('#test-dialog-back').onclick = () => {
+        overlay.remove();
+        showChannelTestDialog();
+    };
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 }
 
-async function testSingleChannel(channel) {
-    const testId = '1397345903';
-    let url;
+function showNeteaseChannelDialog() {
+    const channels = window.CHANNELS || [];
+    const neteaseChannels = channels.filter(c => c.type === 'meting' || c.type === 'bugpk' || c.type === 'byfuns');
 
-    if (channel.type === 'meting') {
-        url = `${channel.base}?server=netease&type=song&id=${testId}`;
-    } else if (channel.type === 'bugpk') {
-        url = `${channel.base}?type=song&id=${testId}`;
-    } else if (channel.type === 'byfuns') {
-        url = `${channel.base}?id=${testId}`;
-    } else {
-        return '❌ 未知类型';
-    }
+    const overlay = createOverlay();
+    overlay.innerHTML = `
+        <div class="help-dialog" style="
+            background: #ffffff;
+            color: #1a1a1a;
+            border-radius: 24px;
+            padding: 32px 28px 24px;
+            max-width: 380px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            margin: auto;
+            z-index: 1000000;
+            border: 2px solid #1a1a1a;
+            line-height: 1.6;
+        ">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: #1a1a1a;">网易云通道</h2>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                ${neteaseChannels.map((c, idx) => `
+                    <button class="channel-test-item" data-channel="${c.name}" data-idx="${idx}" style="
+                        padding: 12px;
+                        background: #f5f5f5;
+                        border: 1px solid #e8e8e8;
+                        border-radius: 12px;
+                        cursor: pointer;
+                        font-size: 14px;
+                        color: #1a1a1a;
+                        transition: all 0.2s;
+                    ">通道${idx + 1} 检测</button>
+                `).join('')}
+                <button id="test-dialog-back" style="
+                    margin-top: 6px;
+                    background: none;
+                    border: none;
+                    color: #999;
+                    cursor: pointer;
+                    font-size: 13px;
+                    padding: 8px;
+                ">返回</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
 
-    try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
-        const response = await fetch(url, { signal: controller.signal });
-        clearTimeout(timeout);
+    overlay.querySelectorAll('.channel-test-item').forEach(btn => {
+        btn.addEventListener('mouseenter', () => {
+            btn.style.background = '#e8e8e8';
+        });
+        btn.addEventListener('mouseleave', () => {
+            btn.style.background = '#f5f5f5';
+        });
+        btn.onclick = async () => {
+            const channelName = btn.dataset.channel;
+            const channel = window.CHANNELS.find(c => c.name === channelName);
+            overlay.remove();
+            const result = await testSingleChannel(channel);
+            showResultDialog(channelName, result);
+        };
+    });
 
-        if (!response.ok) return `❌ ${response.status}`;
-        const text = await response.text();
-        if (text.length < 20) return '⚠️ 返回数据过短';
-        if (text.includes('name') || text.includes('http') || text.includes('url') || text.startsWith('http')) {
-            return '✅ 可用';
-        } else {
-            return '⚠️ 返回格式异常';
-        }
-    } catch (error) {
-        if (error.name === 'AbortError') return '⏱️ 超时';
-        return `❌ ${error.message}`;
-    }
+    overlay.querySelector('#test-dialog-back').onclick = () => {
+        overlay.remove();
+        showChannelTestDialog();
+    };
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 }
 
-// ============================================================
-// 使用说明弹窗
-// ============================================================
+function showResultDialog(channelName, result) {
+    const overlay = createOverlay();
+    const isSuccess = result.includes('✅');
+    overlay.innerHTML = `
+        <div class="help-dialog" style="
+            background: #ffffff;
+            color: #1a1a1a;
+            border-radius: 24px;
+            padding: 32px 28px 24px;
+            max-width: 340px;
+            width: 100%;
+            position: relative;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            margin: auto;
+            z-index: 1000000;
+            border: 2px solid #1a1a1a;
+            line-height: 1.6;
+            text-align: center;
+        ">
+            <div style="font-size: 48px; margin-bottom: 12px;">${isSuccess ? '✅' : '❌'}</div>
+            <div style="font-size: 18px; font-weight: 600; color: #1a1a1a; margin-bottom: 4px;">
+                ${isSuccess ? '通道可用' : '通道不可用'}
+            </div>
+            <div style="font-size: 14px; color: #666; margin-bottom: 16px;">
+                ${result.replace(/^✅\s*|^❌\s*/, '')}
+            </div>
+            <button id="result-ok-btn" style="
+                padding: 10px 40px;
+                background: #1a1a1a;
+                border: none;
+                border-radius: 8px;
+                color: #fff;
+                font-size: 14px;
+                cursor: pointer;
+                font-weight: 500;
+            ">确定</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
 
-function showHelp() {
+    overlay.querySelector('#result-ok-btn').onclick = () => overlay.remove();
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+}
+
+function createOverlay() {
     const overlay = document.createElement('div');
-    overlay.className = 'help-dialog-overlay';
     overlay.style.cssText = `
         position: fixed;
         top: 0;
@@ -273,7 +517,51 @@ function showHelp() {
         overflow: auto;
         min-height: 100vh;
     `;
+    return overlay;
+}
 
+async function testSingleChannel(channel) {
+    const testId = '1397345903';
+    let url;
+
+    if (!channel) return '❌ 通道不存在';
+
+    if (channel.type === 'meting') {
+        url = `${channel.base}?server=netease&type=song&id=${testId}`;
+    } else if (channel.type === 'bugpk') {
+        url = `${channel.base}?type=song&id=${testId}`;
+    } else if (channel.type === 'byfuns') {
+        url = `${channel.base}?id=${testId}`;
+    } else {
+        return '❌ 未知类型';
+    }
+
+    try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+
+        if (!response.ok) return `❌ HTTP ${response.status}`;
+        const text = await response.text();
+        if (text.length < 20) return '⚠️ 返回数据过短';
+        if (text.includes('name') || text.includes('http') || text.includes('url') || text.startsWith('http')) {
+            return '✅ 可用';
+        } else {
+            return '⚠️ 返回格式异常';
+        }
+    } catch (error) {
+        if (error.name === 'AbortError') return '⏱️ 超时';
+        return `❌ ${error.message}`;
+    }
+}
+
+// ============================================================
+// 使用说明弹窗
+// ============================================================
+
+function showHelp() {
+    const overlay = createOverlay();
     overlay.innerHTML = `
         <div class="help-dialog" style="
             background: #ffffff;
@@ -367,7 +655,7 @@ function showHelp() {
                         <span style="font-size: 18px;">💡</span>
                         <div>
                             <div style="font-weight: 600; font-size: 14px; color: #1a1a1a;">通道检测</div>
-                            <div style="opacity: 0.6; font-size: 13px; color: #1a1a1a;">导入失败请点击「检测通道可用性」· 全部失效请等待更新</div>
+                            <div style="opacity: 0.6; font-size: 13px; color: #1a1a1a;">导入失败请手动检测各通道可用性</div>
                         </div>
                     </div>
                 </div>
