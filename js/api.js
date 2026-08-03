@@ -1,11 +1,11 @@
 /**
- * api.js - 音乐播放器网络请求模块（qijieya 专用测试版）
+ * api.js - 音乐播放器网络请求模块（qijieya 修复版）
  * 作者: hy.禾一
- * 说明：只保留 qijieya 通道，用于单独测试
+ * 说明：只保留 qijieya 通道，修复解析逻辑
  */
 
 // ============================================================
-// 🚀 通道配置（只保留 qijieya）
+// 🚀 通道配置
 // ============================================================
 
 const CHANNELS = [
@@ -47,30 +47,37 @@ function isPlaylistLink(url) {
 }
 
 // ============================================================
-// 通用请求：歌曲信息
+// 单曲信息获取
 // ============================================================
 
 async function fetchSongInfo(id) {
-    // 只使用 qijieya
     const channel = CHANNELS[0];
 
     try {
         const url = `${channel.base}?server=netease&type=song&id=${id}`;
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
 
         const data = await response.json();
-        if (!data || data.length === 0) throw new Error('返回数据为空');
+        if (!data || data.length === 0) {
+            throw new Error('返回数据为空');
+        }
 
         const song = data[0];
-        if (!song || !song.name) throw new Error('未找到歌曲信息');
+        if (!song || !song.name) {
+            throw new Error('未找到歌曲信息');
+        }
 
         // 获取歌词
         let lyricText = '';
         if (song.lrc) {
             try {
                 const lrcRes = await fetch(song.lrc);
-                if (lrcRes.ok) lyricText = await lrcRes.text();
+                if (lrcRes.ok) {
+                    lyricText = await lrcRes.text();
+                }
             } catch (e) {}
         }
 
@@ -82,9 +89,7 @@ async function fetchSongInfo(id) {
                 if (urlRes.ok) {
                     playUrl = await urlRes.text();
                 }
-            } catch (e) {
-                console.warn('获取直链失败:', e.message);
-            }
+            } catch (e) {}
         }
 
         return {
@@ -104,22 +109,23 @@ async function fetchSongInfo(id) {
 }
 
 // ============================================================
-// 通用请求：播放链接
+// 播放链接获取
 // ============================================================
 
 async function fetchSongUrl(id, level = 'exhigh') {
     const channel = CHANNELS[0];
 
     try {
-        // 先尝试 type=url
         const url = `${channel.base}?server=netease&type=url&id=${id}`;
         const response = await fetch(url);
         if (response.ok) {
             const text = await response.text();
-            if (text.startsWith('http')) return text;
+            if (text.startsWith('http')) {
+                return text;
+            }
         }
 
-        // 如果失败，从 type=song 里取
+        // 备用：从 type=song 取
         const songUrl = `${channel.base}?server=netease&type=song&id=${id}`;
         const songRes = await fetch(songUrl);
         if (!songRes.ok) return null;
@@ -130,19 +136,21 @@ async function fetchSongUrl(id, level = 'exhigh') {
                 const innerRes = await fetch(innerUrl);
                 if (innerRes.ok) {
                     const text = await innerRes.text();
-                    if (text.startsWith('http')) return text;
+                    if (text.startsWith('http')) {
+                        return text;
+                    }
                 }
             }
         }
         return null;
     } catch (error) {
-        console.error('qijieya 播放链接请求失败:', error.message);
+        console.error('播放链接请求失败:', error.message);
         return null;
     }
 }
 
 // ============================================================
-// 通用请求：歌单
+// 歌单获取
 // ============================================================
 
 async function fetchPlaylist(id) {
@@ -151,12 +159,15 @@ async function fetchPlaylist(id) {
     try {
         const url = `${channel.base}?server=netease&type=playlist&id=${id}`;
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
 
         const data = await response.json();
-        if (!data || data.length === 0) throw new Error('歌单数据为空');
+        if (!data || data.length === 0) {
+            throw new Error('歌单数据为空');
+        }
 
-        // 对每首歌获取直链
         const tracks = [];
         for (const song of data) {
             let playUrl = '';
@@ -166,9 +177,7 @@ async function fetchPlaylist(id) {
                     if (urlRes.ok) {
                         playUrl = await urlRes.text();
                     }
-                } catch (e) {
-                    console.warn(`获取 ${song.name} 直链失败:`, e.message);
-                }
+                } catch (e) {}
             }
             tracks.push({
                 id: song.id || id,
@@ -189,7 +198,7 @@ async function fetchPlaylist(id) {
             tracks: tracks
         };
     } catch (error) {
-        console.error('qijieya 歌单请求失败:', error.message);
+        console.error('歌单请求失败:', error.message);
         throw new Error('qijieya 通道获取歌单失败');
     }
 }
@@ -201,7 +210,9 @@ async function fetchPlaylist(id) {
 async function fetchNeteaseSongInfo(link) {
     try {
         const id = extractNeteaseId(link);
-        if (!id) throw new Error('无法提取歌曲ID，请检查链接');
+        if (!id) {
+            throw new Error('无法提取歌曲ID，请检查链接');
+        }
         return await fetchSongInfo(id);
     } catch (error) {
         console.error('单曲解析失败:', error);
@@ -226,7 +237,9 @@ async function fetchNeteasePlaylist(link) {
         if (!id && /^\d+$/.test(link.trim())) {
             id = link.trim();
         }
-        if (!id) throw new Error('无法提取歌单ID');
+        if (!id) {
+            throw new Error('无法提取歌单ID');
+        }
         return await fetchPlaylist(id);
     } catch (error) {
         console.error('获取歌单失败:', error);
