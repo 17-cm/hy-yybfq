@@ -44,28 +44,6 @@ async function loadAllModules() {
 }
 
 // ============================================================
-// 初始化
-// ============================================================
-
-function initPlayer() {
-    if (typeof window.loadCSS === 'function') window.loadCSS();
-    if (typeof window.createUI === 'function') window.createUI();
-    if (window.MusicPlayerCore && typeof window.MusicPlayerCore.init === 'function') {
-        window.MusicPlayerCore.init();
-    }
-    setTimeout(() => {
-        const settings = getExtensionSettings();
-        if (settings.playerHidden) {
-            if (typeof window.hideUI === 'function') window.hideUI();
-        } else {
-            if (typeof window.showUI === 'function') window.showUI();
-        }
-    }, 300);
-    bindExtensionEvents();
-    console.log('✅ 音乐播放器扩展初始化完成');
-}
-
-// ============================================================
 // 设置管理
 // ============================================================
 
@@ -94,6 +72,37 @@ function getVersion() {
         } catch (e) {}
     }
     return '1.0.7';
+}
+
+// ============================================================
+// 绑定扩展面板事件
+// ============================================================
+
+function bindExtensionEvents() {
+    // 已由 createExtensionPanel 内部绑定
+    // 保留空函数以防 initPlayer 调用
+}
+
+// ============================================================
+// 初始化
+// ============================================================
+
+function initPlayer() {
+    if (typeof window.loadCSS === 'function') window.loadCSS();
+    if (typeof window.createUI === 'function') window.createUI();
+    if (window.MusicPlayerCore && typeof window.MusicPlayerCore.init === 'function') {
+        window.MusicPlayerCore.init();
+    }
+    setTimeout(() => {
+        const settings = getExtensionSettings();
+        if (settings.playerHidden) {
+            if (typeof window.hideUI === 'function') window.hideUI();
+        } else {
+            if (typeof window.showUI === 'function') window.showUI();
+        }
+    }, 300);
+    bindExtensionEvents();
+    console.log('✅ 音乐播放器扩展初始化完成');
 }
 
 // ============================================================
