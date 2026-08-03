@@ -33,7 +33,10 @@ async function loadAllModules() {
         await loadScript(basePath + 'api.js');
         await loadScript(basePath + 'api-qishui.js');
         await loadScript(basePath + 'core.js');
-        await loadScript(basePath + 'ui.js');
+        await loadScript(basePath + 'ui-core.js');
+        await loadScript(basePath + 'ui-helpers.js');
+        await loadScript(basePath + 'ui-events.js');
+        await loadScript(basePath + 'ui-playlist.js');
         initPlayer();
     } catch (error) {
         console.error('❌ 模块加载失败:', error);
@@ -217,29 +220,6 @@ function createExtensionPanel() {
 // ============================================================
 // 通道检测系统
 // ============================================================
-
-function createOverlay() {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        z-index: 2147483647;
-        padding: 20px;
-        box-sizing: border-box;
-        overflow: auto;
-        min-height: 100vh;
-    `;
-    return overlay;
-}
 
 function showChannelTestDialog() {
     const overlay = createOverlay();
