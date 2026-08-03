@@ -7,7 +7,7 @@
 // 状态提示
 // ============================================================
 
-var statusTimer = null;
+let statusTimer = null;
 
 function showStatus(message, type = 'info', duration = 3000) {
     const statusEl = document.getElementById('player-status');
