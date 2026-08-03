@@ -875,7 +875,7 @@ async function importPlaylistTracks(playlist, link) {
 
     for (let i = 0; i < playlist.tracks.length; i++) {
         const track = playlist.tracks[i];
-        const songLink = `music.163.com/song?id=${track.id}`;
+        const songLink = `https://music.163.com/song?id=${track.id}`;
 
         if (typeof window.updateCacheProgress === 'function') {
             window.updateCacheProgress(i + 1, playlist.tracks.length, track.name);
