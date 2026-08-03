@@ -33,21 +33,19 @@ function isPlaylistLink(url) {
 }
 
 // ==========================================
-// 1. 获取单曲信息（直接返回完整数据）
+// 1. 获取单曲信息
 // ==========================================
 async function fetchNeteaseSongInfo(link) {
     try {
         const url = link.trim();
         if (!url) throw new Error('请输入链接或歌曲ID');
 
-        // 请求完整信息，指定极高音质
         const response = await fetch(`${BASE_URL}?type=json&url=${encodeURIComponent(url)}&level=${DEFAULT_LEVEL}`);
         if (!response.ok) throw new Error(`请求失败: ${response.status}`);
 
         const data = await response.json();
         if (data.status !== 200) throw new Error(data.message || '解析失败');
 
-        // 提取歌曲ID（从返回的url里取）
         let songId = null;
         const idMatch = data.url?.match(/id=(\d+)/) || url.match(/id=(\d+)/);
         if (idMatch) songId = idMatch[1];
@@ -68,9 +66,13 @@ async function fetchNeteaseSongInfo(link) {
 }
 
 // ==========================================
-// 2. 刷新播放链接（用于失效重试）
+// 2. 刷新播放链接（方案一：支持纯数字ID和完整链接）
 // ==========================================
 async function refreshSongUrl(link) {
+    // 如果是纯数字，补全为完整链接
+    if (/^\d+$/.test(link)) {
+        link = `https://music.163.com/song?id=${link}`;
+    }
     try {
         const response = await fetch(`${BASE_URL}?type=json&url=${encodeURIComponent(link)}&level=${DEFAULT_LEVEL}`);
         if (!response.ok) return null;
@@ -84,14 +86,12 @@ async function refreshSongUrl(link) {
 }
 
 // ==========================================
-// 3. 获取歌单（逐个提取歌曲ID）
+// 3. 获取歌单
 // ==========================================
 async function fetchNeteasePlaylist(link) {
     try {
-        // 提取歌单ID
         let playlistId = extractNeteaseId(link);
         if (!playlistId) {
-            // 如果提取不到，尝试直接用输入作为ID（可能是纯数字）
             if (/^\d+$/.test(link.trim())) {
                 playlistId = link.trim();
             } else {
@@ -110,7 +110,6 @@ async function fetchNeteasePlaylist(link) {
             throw new Error('该歌单为空');
         }
 
-        // 返回歌单信息，每首歌单独提取ID
         return {
             name: playlist.name || '网易云歌单',
             creator: playlist.creator || '未知',
@@ -118,7 +117,7 @@ async function fetchNeteasePlaylist(link) {
             coverImgUrl: playlist.coverImgUrl || '',
             trackCount: playlist.trackCount || playlist.tracks.length,
             tracks: playlist.tracks.map(track => ({
-                id: track.id,  // 歌曲ID
+                id: track.id,
                 name: track.name || '未知歌曲',
                 artists: track.artists || '未知艺术家',
                 album: track.album || '未知专辑',
