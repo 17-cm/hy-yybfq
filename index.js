@@ -35,8 +35,8 @@ async function loadAllModules() {
         await loadScript(basePath + 'core.js');
         await loadScript(basePath + 'ui-core.js');
         await loadScript(basePath + 'ui-helpers.js');
-        await loadScript(basePath + 'ui-events.js');
         await loadScript(basePath + 'ui-playlist.js');
+        await loadScript(basePath + 'ui-events.js');
         initPlayer();
     } catch (error) {
         console.error('❌ 模块加载失败:', error);
@@ -222,7 +222,7 @@ function createExtensionPanel() {
 // ============================================================
 
 function showChannelTestDialog() {
-    const overlay = createOverlay();
+    const overlay = window.createOverlay();
     overlay.innerHTML = `
         <div class="help-dialog" style="
             background: #ffffff;
@@ -299,7 +299,7 @@ function showChannelTestDialog() {
 }
 
 function showResultDialog(title, result) {
-    const overlay = createOverlay();
+    const overlay = window.createOverlay();
     const isSuccess = result.includes('✅');
     overlay.innerHTML = `
         <div class="help-dialog" style="
@@ -381,7 +381,7 @@ async function testNeteaseChannel() {
 // ============================================================
 
 function showHelp() {
-    const overlay = createOverlay();
+    const overlay = window.createOverlay();
     overlay.innerHTML = `
         <div class="help-dialog" style="
             background: #ffffff;
