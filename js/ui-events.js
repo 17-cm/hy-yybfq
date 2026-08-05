@@ -101,8 +101,19 @@ function bindEvents() {
     const leftZone = rhythmIcon?.querySelector('.rhythm-left-zone');
     const rightZone = rhythmIcon?.querySelector('.rhythm-right-zone');
 
-    if (island) {
+    // ===== 播放器拖拽（整个面板） =====
+    if (root) {
         const handlePlayerDrag = (e) => {
+            // 如果点击的是按钮、输入框、封面等可交互元素，不触发拖拽
+            const target = e.target;
+            if (target.closest('button') || 
+                target.closest('input') || 
+                target.closest('.player-cover') ||
+                target.closest('.player-controls') ||
+                target.closest('.player-right')) {
+                return;
+            }
+
             e.preventDefault();
             const startX = e.clientX || e.touches[0].clientX;
             const startY = e.clientY || e.touches[0].clientY;
@@ -137,10 +148,11 @@ function bindEvents() {
             document.addEventListener('touchend', up);
         };
 
-        island.addEventListener('mousedown', handlePlayerDrag);
-        island.addEventListener('touchstart', handlePlayerDrag);
+        root.addEventListener('mousedown', handlePlayerDrag);
+        root.addEventListener('touchstart', handlePlayerDrag);
     }
 
+    // ===== 律动模式拖拽（保留原逻辑） =====
     if (leftZone) {
         const handleRhythmDrag = (e) => {
             e.preventDefault();
