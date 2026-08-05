@@ -25,6 +25,11 @@ function inspectLink(url) {
     return { type: 'unknown', id: null };
 }
 
+function isNeteaseLink(url) {
+    const str = String(url).trim();
+    return str.includes('music.163.com') || str.includes('163cn.tv') || /^\d+$/.test(str);
+}
+
 function isPlaylistLink(url) {
     return inspectLink(url).type === 'playlist';
 }
@@ -60,7 +65,7 @@ async function fetchNeteaseSongInfo(link) {
             lyrics: data.lyric || '',
             cover: data.pic || '',
             duration: '0:00',
-            shareLink: url,        // 存分享链接
+            shareLink: url,
             source: 'netease'
         };
     } catch (error) {
@@ -82,17 +87,14 @@ async function refreshSongUrl(shareLink) {
     let requestUrl;
 
     if (inspected.type === 'shortlink' || inspected.type === 'song') {
-        // 短链接和长链接都用 url 参数
         requestUrl = `${BASE_URL}?type=json&url=${encodeURIComponent(url)}&level=${DEFAULT_LEVEL}`;
     } else if (inspected.type === 'playlist') {
-        // 歌单链接不能用来刷新单曲，需要提取 id
         if (inspected.id) {
             requestUrl = `${BASE_URL}?type=json&id=${inspected.id}&level=${DEFAULT_LEVEL}`;
         } else {
             return null;
         }
     } else {
-        // 未知类型，尝试用 url
         requestUrl = `${BASE_URL}?type=json&url=${encodeURIComponent(url)}&level=${DEFAULT_LEVEL}`;
     }
 
@@ -142,14 +144,14 @@ async function fetchNeteasePlaylist(link) {
             description: playlist.description || '',
             coverImgUrl: playlist.coverImgUrl || '',
             trackCount: playlist.trackCount || playlist.tracks.length,
-            shareLink: url,  // 歌单本身的分享链接
+            shareLink: url,
             tracks: playlist.tracks.map(track => ({
                 id: track.id,
                 name: track.name || '未知歌曲',
                 artists: track.artists || '未知艺术家',
                 album: track.album || '未知专辑',
                 picUrl: track.picUrl || '',
-                shareLink: `https://music.163.com/song?id=${track.id}`,  // 每首歌的分享链接
+                shareLink: `https://music.163.com/song?id=${track.id}`,
                 source: 'netease'
             }))
         };
@@ -166,4 +168,6 @@ async function fetchNeteasePlaylist(link) {
 window.fetchNeteaseSongInfo = fetchNeteaseSongInfo;
 window.fetchNeteasePlaylist = fetchNeteasePlaylist;
 window.refreshSongUrl = refreshSongUrl;
+window.isNeteaseLink = isNeteaseLink;
 window.isPlaylistLink = isPlaylistLink;
+window.inspectLink = inspectLink;
