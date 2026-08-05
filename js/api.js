@@ -9,7 +9,7 @@
 // 接口配置
 // ==========================================
 const BASE_URL = 'https://api.bugpk.com/api/163_music';
-const DEFAULT_LEVEL = 'exhigh'; // 默认极高音质
+const DEFAULT_LEVEL = 'exhigh';
 
 // ==========================================
 // 工具函数：提取纯数字ID（仅用于歌单解析）
@@ -66,23 +66,39 @@ async function fetchNeteaseSongInfo(link) {
 }
 
 // ==========================================
-// 2. 刷新播放链接（方案一：支持纯数字ID和完整链接）
+// 2. 刷新播放链接（带自动重试）
 // ==========================================
-async function refreshSongUrl(link) {
+async function refreshSongUrl(link, maxRetries = 3) {
     // 如果是纯数字，补全为完整链接
     if (/^\d+$/.test(link)) {
         link = `https://music.163.com/song?id=${link}`;
     }
-    try {
-        const response = await fetch(`${BASE_URL}?type=json&url=${encodeURIComponent(link)}&level=${DEFAULT_LEVEL}`);
-        if (!response.ok) return null;
-        const data = await response.json();
-        if (data.status !== 200) return null;
-        return data.url || null;
-    } catch (e) {
-        console.error('刷新链接失败:', e);
-        return null;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const response = await fetch(`${BASE_URL}?type=json&url=${encodeURIComponent(link)}&level=${DEFAULT_LEVEL}`);
+            if (!response.ok) continue;
+            
+            const data = await response.json();
+            if (data.status !== 200) continue;
+            
+            const url = data.url || null;
+            if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                console.log(`✅ 网易链接刷新成功 (尝试 ${attempt + 1})`);
+                return url;
+            }
+        } catch (e) {
+            console.warn(`⚠️ 网易链接刷新失败 (尝试 ${attempt + 1}):`, e);
+        }
+        
+        // 等待后重试
+        if (attempt < maxRetries - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
     }
+    
+    console.error('❌ 网易链接刷新失败，已达最大重试次数');
+    return null;
 }
 
 // ==========================================
