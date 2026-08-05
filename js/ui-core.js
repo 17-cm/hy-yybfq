@@ -411,13 +411,18 @@ function updateView() {
     const core = window.MusicPlayerCore;
     if (!core) return;
 
-    // ===== 强制检查：如果播放器被隐藏，直接返回 =====
-    const settings = window.extension_settings?.['music_player'] || {};
-    if (settings.playerHidden) {
+    // ===== 新增：检查强制隐藏状态 =====
+    if (core._forceHidden === true) {
+        const root = document.getElementById('player-root');
+        const rhythmIcon = document.getElementById('player-rhythm-icon');
+        if (root) root.style.display = 'none';
+        if (rhythmIcon) rhythmIcon.style.display = 'none';
         return;
     }
 
-    if (window.extension_settings?.['music_player']?.playerHidden) {
+    // ===== 检查设置中的隐藏状态 =====
+    const settings = window.extension_settings?.['music_player'] || {};
+    if (settings.playerHidden === true) {
         const root = document.getElementById('player-root');
         const rhythmIcon = document.getElementById('player-rhythm-icon');
         if (root) root.style.display = 'none';
