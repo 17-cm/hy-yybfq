@@ -263,10 +263,29 @@ function createUI() {
     const miniIcon = document.createElement('div');
     miniIcon.id = 'player-mini-icon';
     miniIcon.textContent = '♫';
+
+    const savedPos = localStorage.getItem('mini_icon_pos');
+    let initLeft = 'auto';
+    let initTop = 'auto';
+    let initBottom = '35%';
+    let initRight = '20px';
+
+    if (savedPos) {
+        try {
+            const pos = JSON.parse(savedPos);
+            if (pos.left) initLeft = pos.left;
+            if (pos.top) initTop = pos.top;
+            initRight = 'auto';
+            initBottom = 'auto';
+        } catch (e) {}
+    }
+
     miniIcon.style.cssText = `
-        position: absolute !important;
-        bottom: 35% !important;
-        right: 20px !important;
+        position: fixed !important;
+        left: ${initLeft} !important;
+        top: ${initTop} !important;
+        right: ${initRight} !important;
+        bottom: ${initBottom} !important;
         width: 40px !important;
         height: 40px !important;
         border-radius: 50% !important;
@@ -283,6 +302,8 @@ function createUI() {
         font-size: 22px !important;
         font-weight: bold !important;
         color: #000000 !important;
+        transform: translateZ(0) !important;
+        will-change: transform !important;
     `;
 
     miniIcon.addEventListener('mouseenter', () => {
@@ -381,17 +402,6 @@ function createUI() {
     document.addEventListener('touchmove', handleDragMove);
     document.addEventListener('mouseup', handleDragEnd);
     document.addEventListener('touchend', handleDragEnd);
-
-    const savedPos = localStorage.getItem('mini_icon_pos');
-    if (savedPos) {
-        try {
-            const pos = JSON.parse(savedPos);
-            if (pos.left) miniIcon.style.left = pos.left;
-            if (pos.top) miniIcon.style.top = pos.top;
-            miniIcon.style.right = 'auto';
-            miniIcon.style.bottom = 'auto';
-        } catch (e) {}
-    }
 
     const settings = window.extension_settings?.['music_player'] || {};
     if (settings.miniIconVisible !== false) {
@@ -528,18 +538,7 @@ function updateView() {
 
     updateSettingsPanel();
 
-    const miniIcon = document.getElementById('player-mini-icon');
-    if (miniIcon && island) {
-        miniIcon.className = island.className;
-        const mode = core.state.rgbMode;
-        let color = cfg.borderColor;
-        if (mode === 1 || mode === 2) {
-            color = cfg.rgbColor;
-        }
-        miniIcon.style.borderColor = color;
-        miniIcon.style.color = color;
-        miniIcon.style.background = '#ffffff';
-    }
+    // ===== U3 不在此更新样式，避免位置偏移 =====
 }
 
 function updateSettingsPanel() {
