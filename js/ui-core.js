@@ -27,7 +27,7 @@ function createUI() {
     statusEl.className = 'player-status';
     document.body.appendChild(statusEl);
 
-    // ===== U2：律动图标 =====
+    // ===== U2：律动图标（无提示词，点击返回 + 拖拽移动） =====
     const rhythmIcon = document.createElement('div');
     rhythmIcon.id = 'player-rhythm-icon';
     rhythmIcon.className = 'player-rhythm-icon';
@@ -49,19 +49,75 @@ function createUI() {
         bars += `<div class="rhythm-bar ${isEdge ? 'edge-bar' : ''}" style="--h:${h}px; --d:${d}s; --s:${s}s"></div>`;
     }
 
+    // 去掉提示词，只保留星星和律动条
     rhythmIcon.innerHTML = `
         <div class="rhythm-star star-left">✦</div>
         <div class="rhythm-star star-right">✦</div>
-        <div class="rhythm-left-zone">
-            <div class="zone-hint">拖拽</div>
-        </div>
         <div class="rhythm-wave-box">${bars}</div>
         <div class="rhythm-base-line"></div>
-        <div class="rhythm-right-zone">
-            <div class="zone-hint">双击</div>
-        </div>
     `;
     document.body.appendChild(rhythmIcon);
+
+    // ===== U2 交互：点击返回 + 拖拽移动 =====
+    let rhythmDrag = { active: false, offX: 0, offY: 0 };
+    let rhythmHasMoved = false;
+    let rhythmStartX = 0, rhythmStartY = 0;
+
+    const rhythmDragStart = (e) => {
+        e.preventDefault();
+        rhythmDrag.active = true;
+        rhythmStartX = e.clientX || e.touches[0].clientX;
+        rhythmStartY = e.clientY || e.touches[0].clientY;
+        rhythmDrag.offX = rhythmStartX - rhythmIcon.offsetLeft;
+        rhythmDrag.offY = rhythmStartY - rhythmIcon.offsetTop;
+        rhythmHasMoved = false;
+        rhythmIcon.style.cursor = 'grabbing';
+    };
+
+    const rhythmDragMove = (ev) => {
+        if (!rhythmDrag.active) return;
+        ev.preventDefault();
+        const cx = ev.clientX || ev.touches[0].clientX;
+        const cy = ev.clientY || ev.touches[0].clientY;
+        const dx = cx - rhythmStartX;
+        const dy = cy - rhythmStartY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+            rhythmHasMoved = true;
+        }
+        const x = cx - rhythmDrag.offX;
+        const y = cy - rhythmDrag.offY;
+        rhythmIcon.style.left = x + 'px';
+        rhythmIcon.style.top = y + 'px';
+    };
+
+    const rhythmDragEnd = () => {
+        if (rhythmDrag.active) {
+            rhythmDrag.active = false;
+            rhythmIcon.style.cursor = 'default';
+            if (!rhythmHasMoved) {
+                // 点击返回播放器
+                const core = window.MusicPlayerCore;
+                if (core) {
+                    core.state.isRhythmMode = false;
+                    window.updateView();
+                    core.saveData();
+                }
+            } else {
+                // 保存位置
+                localStorage.setItem('rhythm_icon_pos', JSON.stringify({
+                    left: rhythmIcon.style.left,
+                    top: rhythmIcon.style.top
+                }));
+            }
+        }
+    };
+
+    rhythmIcon.addEventListener('mousedown', rhythmDragStart);
+    rhythmIcon.addEventListener('touchstart', rhythmDragStart);
+    document.addEventListener('mousemove', rhythmDragMove);
+    document.addEventListener('touchmove', rhythmDragMove);
+    document.addEventListener('mouseup', rhythmDragEnd);
+    document.addEventListener('touchend', rhythmDragEnd);
 
     // ===== U1：播放器主体 =====
     const root = document.createElement('div');
