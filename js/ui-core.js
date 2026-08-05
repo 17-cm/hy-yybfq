@@ -205,6 +205,42 @@ function createUI() {
         </div>
     `;
     document.body.appendChild(root);
+
+    // ===== 新增：最小化悬浮图标 =====
+    const miniIcon = document.createElement('div');
+    miniIcon.id = 'player-mini-icon';
+    miniIcon.innerHTML = '🎵';
+    miniIcon.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: rgba(20, 20, 20, 0.85);
+        color: #ffffff;
+        font-size: 28px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 9999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        user-select: none;
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(255,255,255,0.1);
+        transition: transform 0.2s ease;
+    `;
+    
+    // 悬停缩放效果
+    miniIcon.addEventListener('mouseenter', () => {
+        miniIcon.style.transform = 'scale(1.05)';
+    });
+    miniIcon.addEventListener('mouseleave', () => {
+        miniIcon.style.transform = 'scale(1)';
+    });
+    
+    document.body.appendChild(miniIcon);
 }
 
 // ============================================================
