@@ -49,7 +49,7 @@ async function loadAllModules() {
 
 function getExtensionSettings() {
     if (!extension_settings[EXTENSION_NAME]) {
-        extension_settings[EXTENSION_NAME] = { playerHidden: false };
+        extension_settings[EXTENSION_NAME] = { miniIconVisible: true };
     }
     return extension_settings[EXTENSION_NAME];
 }
@@ -95,10 +95,14 @@ function initPlayer() {
     }
     setTimeout(() => {
         const settings = getExtensionSettings();
-        if (settings.playerHidden) {
-            if (typeof window.hideUI === 'function') window.hideUI();
+        const icon = document.getElementById('player-mini-icon');
+        const root = document.getElementById('player-root');
+        if (settings.miniIconVisible) {
+            if (icon) icon.style.display = 'flex';
+            if (root) root.style.display = 'flex';
         } else {
-            if (typeof window.showUI === 'function') window.showUI();
+            if (icon) icon.style.display = 'none';
+            if (root) root.style.display = 'none';
         }
     }, 300);
     bindExtensionEvents();
@@ -124,28 +128,25 @@ function createExtensionPanel() {
             </div>
             <div class="inline-drawer-content" style="display: none;">
 
-                <!-- 第一行：隐藏播放器 + 打开播放器 -->
-                <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                    <label style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 0; background: rgba(0,0,0,0.06); border-radius: 6px; cursor: pointer; border: 1px solid #cccccc; font-size: 13px; color: #000000;">
-                        <input type="checkbox" id="player-hidden-toggle" ${settings.playerHidden ? 'checked' : ''} style="margin: 0;">
-                        <span>隐藏播放器</span>
+                <!-- 显示悬浮图标 -->
+                <div style="margin-bottom: 10px;">
+                    <label style="display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; color: #000000;">
+                        <input type="checkbox" id="mini-icon-toggle" ${settings.miniIconVisible !== false ? 'checked' : ''}>
+                        <span>显示悬浮图标</span>
                     </label>
-                    <button type="button" id="player-show-btn" style="flex: 1; padding: 8px 0; font-size: 13px; background: rgba(0,0,0,0.06); border-radius: 6px; border: 1px solid #cccccc; cursor: pointer; color: #000000;">
-                        打开播放器
-                    </button>
                 </div>
 
-                <!-- 第二行：通道检测 -->
+                <!-- 通道检测 -->
                 <button type="button" id="test-channels-btn" style="width: 100%; padding: 8px 0; font-size: 13px; background: rgba(0,0,0,0.06); border-radius: 6px; border: 1px solid #cccccc; cursor: pointer; color: #000000; margin-bottom: 10px;">
                     通道检测
                 </button>
 
-                <!-- 第三行：使用说明 -->
+                <!-- 使用说明 -->
                 <button type="button" id="show-help-btn" style="width: 100%; padding: 8px 0; font-size: 13px; background: rgba(0,0,0,0.06); border-radius: 6px; border: 1px solid #cccccc; cursor: pointer; color: #000000; margin-bottom: 10px;">
                     使用说明
                 </button>
 
-                <!-- 第四行：注脚 + 版本号 -->
+                <!-- 注脚 + 版本号 -->
                 <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid #e0e0e0;">
                     <small style="opacity: 0.5; font-size: 11px; letter-spacing: 0.5px; color: #000000;">
                         𓂃𓂃𓂃𓊝𓄹𓄺𓂃𓂃𓂃 hy.禾一
@@ -185,33 +186,22 @@ function createExtensionPanel() {
         });
     }
 
-    // 隐藏播放器
-    const hiddenToggle = document.getElementById('player-hidden-toggle');
-    if (hiddenToggle) {
-        hiddenToggle.addEventListener('change', (e) => {
+    // 悬浮图标开关
+    const miniToggle = document.getElementById('mini-icon-toggle');
+    if (miniToggle) {
+        miniToggle.addEventListener('change', (e) => {
             const settings = getExtensionSettings();
-            settings.playerHidden = e.target.checked;
+            settings.miniIconVisible = e.target.checked;
             extension_settings[EXTENSION_NAME] = settings;
             saveExtensionSettings();
-            if (settings.playerHidden) {
-                if (typeof window.hideUI === 'function') window.hideUI();
-            } else {
-                if (typeof window.showUI === 'function') window.showUI();
+            const icon = document.getElementById('player-mini-icon');
+            const root = document.getElementById('player-root');
+            if (icon) {
+                icon.style.display = e.target.checked ? 'flex' : 'none';
             }
-        });
-    }
-
-    // 打开播放器
-    const showBtn = document.getElementById('player-show-btn');
-    if (showBtn) {
-        showBtn.addEventListener('click', () => {
-            const settings = getExtensionSettings();
-            settings.playerHidden = false;
-            extension_settings[EXTENSION_NAME] = settings;
-            saveExtensionSettings();
-            if (typeof window.showUI === 'function') window.showUI();
-            const toggle = document.getElementById('player-hidden-toggle');
-            if (toggle) toggle.checked = false;
+            if (root) {
+                root.style.display = e.target.checked ? 'flex' : 'none';
+            }
         });
     }
 
