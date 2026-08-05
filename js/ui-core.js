@@ -227,7 +227,7 @@ function createUI() {
         z-index: 9999 !important;
         border: 2px solid #000000 !important;
         box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
-        cursor: pointer !important;
+        cursor: grab !important;
         user-select: none !important;
         transition: transform 0.2s ease !important;
     `;
@@ -246,45 +246,94 @@ function createUI() {
 
     console.log('✅ 最小化图标已创建（黑边白底黑音符）');
 
-    // ===== U3 点击：切换显示状态，并记住最后一次显示的是谁 =====
-    miniIcon.addEventListener('click', () => {
-        const u1 = document.getElementById('player-root');
-        const u2 = document.getElementById('player-rhythm-icon');
-        if (!u1 || !u2) return;
+    // ===== U3 交互：拖拽 + 点击区分（借鉴玉子手机） =====
+    let dragStartX = 0, dragStartY = 0;
+    let isDragging = false;
 
-        // 获取核心状态，判断当前模式
-        const core = window.MusicPlayerCore;
-        const isRhythmMode = core && core.state.isRhythmMode;
+    miniIcon.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        dragStartX = e.clientX;
+        dragStartY = e.clientY;
+        isDragging = false;
+        miniIcon.style.cursor = 'grabbing';
+    });
 
-        // 判断当前是否处于“隐藏”状态（U1 和 U2 都隐藏）
-        const isHidden = u1.style.display === 'none' && u2.style.display === 'none';
-
-        if (isHidden) {
-            // ===== 恢复显示：根据记忆显示对应的模式 =====
-            // 如果记忆丢失或无效，则根据当前模式决定
-            const targetMode = miniIcon._lastVisibleMode !== undefined ? miniIcon._lastVisibleMode : isRhythmMode;
-            
-            if (targetMode) {
-                // 显示 U2（律动模式）
-                u1.style.display = 'none';
-                u2.style.display = 'flex';
-            } else {
-                // 显示 U1（播放器主体）
-                u1.style.display = 'flex';
-                u2.style.display = 'none';
-            }
-        } else {
-            // ===== 全部隐藏，并记录当前显示的是谁 =====
-            // 记录当前显示的模式
-            if (u2.style.display === 'flex') {
-                miniIcon._lastVisibleMode = true;  // true 代表 U2
-            } else {
-                miniIcon._lastVisibleMode = false; // false 代表 U1
-            }
-            u1.style.display = 'none';
-            u2.style.display = 'none';
+    document.addEventListener('mousemove', (e) => {
+        if (!miniIcon._isDragging) return;
+        e.preventDefault();
+        const dx = e.clientX - dragStartX;
+        const dy = e.clientY - dragStartY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+            miniIcon._isDragging = true;
+            isDragging = true;
+            const rect = miniIcon.getBoundingClientRect();
+            const parentRect = miniIcon.parentElement.getBoundingClientRect();
+            miniIcon.style.left = (rect.left - parentRect.left + dx) + 'px';
+            miniIcon.style.top = (rect.top - parentRect.top + dy) + 'px';
+            miniIcon.style.right = 'auto';
+            miniIcon.style.bottom = 'auto';
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
         }
     });
+
+    document.addEventListener('mouseup', (e) => {
+        if (miniIcon._isDragging) {
+            miniIcon._isDragging = false;
+            miniIcon.style.cursor = 'grab';
+            // 保存位置
+            localStorage.setItem('mini_icon_pos', JSON.stringify({
+                left: miniIcon.style.left,
+                top: miniIcon.style.top
+            }));
+            return;
+        }
+
+        // 如果没拖拽，执行点击逻辑
+        if (!isDragging) {
+            const u1 = document.getElementById('player-root');
+            const u2 = document.getElementById('player-rhythm-icon');
+            if (u1 && u2) {
+                const core = window.MusicPlayerCore;
+                const isRhythmMode = core && core.state.isRhythmMode;
+                const isHidden = u1.style.display === 'none' && u2.style.display === 'none';
+
+                if (isHidden) {
+                    const targetMode = miniIcon._lastVisibleMode !== undefined ? miniIcon._lastVisibleMode : isRhythmMode;
+                    if (targetMode) {
+                        u1.style.display = 'none';
+                        u2.style.display = 'flex';
+                    } else {
+                        u1.style.display = 'flex';
+                        u2.style.display = 'none';
+                    }
+                } else {
+                    if (u2.style.display === 'flex') {
+                        miniIcon._lastVisibleMode = true;
+                    } else {
+                        miniIcon._lastVisibleMode = false;
+                    }
+                    u1.style.display = 'none';
+                    u2.style.display = 'none';
+                }
+            }
+        }
+
+        isDragging = false;
+        miniIcon.style.cursor = 'grab';
+    });
+
+    // ===== 恢复保存的位置 =====
+    const savedPos = localStorage.getItem('mini_icon_pos');
+    if (savedPos) {
+        try {
+            const pos = JSON.parse(savedPos);
+            if (pos.left) miniIcon.style.left = pos.left;
+            if (pos.top) miniIcon.style.top = pos.top;
+            miniIcon.style.right = 'auto';
+            miniIcon.style.bottom = 'auto';
+        } catch (e) {}
+    }
 
     // ===== 根据设置决定图标初始状态 =====
     const settings = window.extension_settings?.['music_player'] || {};
