@@ -21,13 +21,13 @@ function loadCSS() {
 // ============================================================
 
 function createUI() {
-    // 状态提示
+    // ===== 状态提示 =====
     const statusEl = document.createElement('div');
     statusEl.id = 'player-status';
     statusEl.className = 'player-status';
     document.body.appendChild(statusEl);
 
-    // 律动图标
+    // ===== U2：律动图标 =====
     const rhythmIcon = document.createElement('div');
     rhythmIcon.id = 'player-rhythm-icon';
     rhythmIcon.className = 'player-rhythm-icon';
@@ -57,7 +57,7 @@ function createUI() {
     `;
     document.body.appendChild(rhythmIcon);
 
-    // 律动图标交互
+    // ===== U2 交互：点击返回 + 拖拽移动 =====
     let rhythmDrag = { active: false, offX: 0, offY: 0 };
     let rhythmHasMoved = false;
     let rhythmStartX = 0, rhythmStartY = 0;
@@ -116,7 +116,7 @@ function createUI() {
     document.addEventListener('mouseup', rhythmDragEnd);
     document.addEventListener('touchend', rhythmDragEnd);
 
-    // 播放器主体
+    // ===== U1：播放器主体 =====
     const root = document.createElement('div');
     root.id = 'player-root';
     root.innerHTML = `
@@ -259,7 +259,7 @@ function createUI() {
     `;
     document.body.appendChild(root);
 
-    // 最小化悬浮图标
+    // ===== U3：最小化悬浮图标 =====
     const miniIcon = document.createElement('div');
     miniIcon.id = 'player-mini-icon';
     miniIcon.textContent = '♫';
@@ -299,7 +299,7 @@ function createUI() {
 
     console.log('✅ 最小化图标已创建');
 
-    // 最小化图标交互
+    // ===== U3 交互：拖拽 + 点击切换 =====
     let drag = { active: false, offX: 0, offY: 0 };
     let hasMoved = false;
     let startX = 0, startY = 0;
@@ -382,7 +382,7 @@ function createUI() {
     document.addEventListener('mouseup', handleDragEnd);
     document.addEventListener('touchend', handleDragEnd);
 
-    // 恢复保存的位置
+    // ===== 恢复保存的位置 =====
     const savedPos = localStorage.getItem('mini_icon_pos');
     if (savedPos) {
         try {
@@ -394,7 +394,7 @@ function createUI() {
         } catch (e) {}
     }
 
-    // 根据设置决定图标初始状态
+    // ===== 根据设置决定图标初始状态 =====
     const settings = window.extension_settings?.['music_player'] || {};
     if (settings.miniIconVisible !== false) {
         miniIcon.style.display = 'flex';
@@ -411,6 +411,13 @@ function updateView() {
     const core = window.MusicPlayerCore;
     if (!core) return;
 
+    // ===== 如果播放器被隐藏，不执行任何更新 =====
+    const settings = window.extension_settings?.['music_player'] || {};
+    if (settings.playerHidden) {
+        return;
+    }
+
+    // 原有的隐藏逻辑（保留兼容）
     if (window.extension_settings?.['music_player']?.playerHidden) {
         const root = document.getElementById('player-root');
         const rhythmIcon = document.getElementById('player-rhythm-icon');
@@ -529,7 +536,7 @@ function updateView() {
 
     updateSettingsPanel();
 
-    // 最小化图标跟随边框颜色
+    // ===== 最小化图标跟随边框颜色 =====
     const miniIcon = document.getElementById('player-mini-icon');
     if (miniIcon) {
         miniIcon.style.borderColor = cfg.borderColor;
