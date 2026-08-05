@@ -31,6 +31,19 @@ function createUI() {
     rhythmIcon.className = 'player-rhythm-icon';
     rhythmIcon.style.display = 'none';
 
+    // 恢复 U2 保存的位置
+    const savedRhythmPos = localStorage.getItem('rhythm_icon_pos');
+    if (savedRhythmPos) {
+        try {
+            const pos = JSON.parse(savedRhythmPos);
+            if (pos.left) rhythmIcon.style.left = pos.left;
+            if (pos.top) rhythmIcon.style.top = pos.top;
+        } catch (e) {}
+    } else {
+        rhythmIcon.style.left = '20px';
+        rhythmIcon.style.top = '300px';
+    }
+
     let bars = '';
     const totalBars = 60;
     for (let i = 0; i < totalBars; i++) {
@@ -65,8 +78,9 @@ function createUI() {
         rhythmDrag.active = true;
         rhythmStartX = e.clientX || e.touches[0].clientX;
         rhythmStartY = e.clientY || e.touches[0].clientY;
-        rhythmDrag.offX = rhythmStartX - rhythmIcon.offsetLeft;
-        rhythmDrag.offY = rhythmStartY - rhythmIcon.offsetTop;
+        const rect = rhythmIcon.getBoundingClientRect();
+        rhythmDrag.offX = rhythmStartX - rect.left;
+        rhythmDrag.offY = rhythmStartY - rect.top;
         rhythmHasMoved = false;
         rhythmIcon.style.cursor = 'grabbing';
     };
@@ -85,6 +99,11 @@ function createUI() {
         const y = cy - rhythmDrag.offY;
         rhythmIcon.style.left = x + 'px';
         rhythmIcon.style.top = y + 'px';
+        // 实时同步到 core
+        const core = window.MusicPlayerCore;
+        if (core) {
+            core.state.rhythmIconPos = { x, y };
+        }
     };
 
     const rhythmDragEnd = () => {
@@ -102,10 +121,21 @@ function createUI() {
                     core.saveData();
                 }
             } else {
-                localStorage.setItem('rhythm_icon_pos', JSON.stringify({
+                // 保存位置
+                const pos = {
                     left: rhythmIcon.style.left,
                     top: rhythmIcon.style.top
-                }));
+                };
+                localStorage.setItem('rhythm_icon_pos', JSON.stringify(pos));
+                const core = window.MusicPlayerCore;
+                if (core) {
+                    core.state.rhythmIconPos = {
+                        x: parseInt(pos.left),
+                        y: parseInt(pos.top)
+                    };
+                    core.saveData();
+                }
+                console.log('💾 U2 位置已保存:', pos);
             }
         }
     };
@@ -446,8 +476,26 @@ function updateView() {
 
     root.style.left = core.state.playerPos.x + 'px';
     root.style.top = core.state.playerPos.y + 'px';
-    rhythmIcon.style.left = core.state.rhythmIconPos.x + 'px';
-    rhythmIcon.style.top = core.state.rhythmIconPos.y + 'px';
+
+    // ===== U2 位置从 localStorage 读取 =====
+    const savedRhythmPos = localStorage.getItem('rhythm_icon_pos');
+    if (savedRhythmPos) {
+        try {
+            const pos = JSON.parse(savedRhythmPos);
+            if (pos.left && pos.top) {
+                rhythmIcon.style.left = pos.left;
+                rhythmIcon.style.top = pos.top;
+                // 同步更新 core
+                core.state.rhythmIconPos = {
+                    x: parseInt(pos.left),
+                    y: parseInt(pos.top)
+                };
+            }
+        } catch (e) {}
+    } else {
+        rhythmIcon.style.left = core.state.rhythmIconPos.x + 'px';
+        rhythmIcon.style.top = core.state.rhythmIconPos.y + 'px';
+    }
 
     root.style.setProperty('--border-w', cfg.borderWidth);
     root.style.setProperty('--rgb-single', cfg.rgbColor);
