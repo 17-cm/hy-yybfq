@@ -89,7 +89,7 @@ function renderImportHistory() {
 }
 
 // ============================================================
-// 添加歌曲（新弹框样式）
+// 添加歌曲
 // ============================================================
 
 function showAddOptions() {
@@ -185,7 +185,6 @@ function showAddOptions() {
                     window.showStatus('请输入有效的网易云链接', 'error');
                     return;
                 }
-                // 判断是歌单还是单曲
                 if (window.isPlaylistLink && window.isPlaylistLink(input)) {
                     await doAddPlaylist(input);
                 } else {
@@ -200,7 +199,7 @@ function showAddOptions() {
 }
 
 // ============================================================
-// 实际执行添加单曲
+// 执行添加单曲
 // ============================================================
 
 async function doAddSong(input, source) {
@@ -232,7 +231,7 @@ async function doAddSong(input, source) {
             url: songInfo.url,
             lyrics: songInfo.lyrics || '',
             cover: songInfo.cover || '',
-            neteaseId: songInfo.neteaseId || null,
+            shareLink: songInfo.shareLink || input,  // 存分享链接
             source: source
         });
 
@@ -256,7 +255,7 @@ async function doAddSong(input, source) {
 }
 
 // ============================================================
-// 实际执行添加歌单
+// 执行添加歌单
 // ============================================================
 
 async function doAddPlaylist(input) {
@@ -311,14 +310,14 @@ async function importPlaylistTracks(playlist, link) {
 
     for (let i = 0; i < playlist.tracks.length; i++) {
         const track = playlist.tracks[i];
-        const songLink = `https://music.163.com/song?id=${track.id}`;
 
         if (typeof window.updateCacheProgress === 'function') {
             window.updateCacheProgress(i + 1, playlist.tracks.length, track.name);
         }
 
         try {
-            const songInfo = await window.fetchNeteaseSongInfo(songLink);
+            // 用每首歌的 shareLink 去获取单曲信息
+            const songInfo = await window.fetchNeteaseSongInfo(track.shareLink);
 
             core.playlist.push({
                 title: track.name,
@@ -326,7 +325,7 @@ async function importPlaylistTracks(playlist, link) {
                 url: songInfo.url,
                 lyrics: songInfo.lyrics || '',
                 cover: track.picUrl || songInfo.cover,
-                neteaseId: track.id.toString(),
+                shareLink: track.shareLink,  // 每首歌的分享链接
                 source: 'netease'
             });
 
