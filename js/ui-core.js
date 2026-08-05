@@ -206,13 +206,13 @@ function createUI() {
     `;
     document.body.appendChild(root);
 
-    // ===== U3：最小化悬浮图标（黑边白底黑音符） =====
+    // ===== U3：最小化悬浮图标 =====
     const miniIcon = document.createElement('div');
     miniIcon.id = 'player-mini-icon';
     miniIcon.textContent = '♫';
     miniIcon.style.cssText = `
         position: absolute !important;
-        bottom: 20px !important;
+        bottom: 40px !important;
         right: 20px !important;
         width: 40px !important;
         height: 40px !important;
@@ -246,7 +246,7 @@ function createUI() {
 
     console.log('✅ 最小化图标已创建（黑边白底黑音符）');
 
-    // ===== U3 交互：拖拽 + 点击区分（修复全局触发问题） =====
+    // ===== U3 交互：拖拽 + 点击区分（修复拖拽） =====
     let dragStartX = 0, dragStartY = 0;
     let isDragging = false;
     let isClickFromIcon = false;
@@ -257,12 +257,12 @@ function createUI() {
         dragStartX = e.clientX;
         dragStartY = e.clientY;
         isDragging = false;
+        miniIcon._isDragging = false;
         miniIcon.style.cursor = 'grabbing';
     });
 
     document.addEventListener('mousemove', (e) => {
         if (!isClickFromIcon) return;
-        if (!miniIcon._isDragging) return;
         e.preventDefault();
         const dx = e.clientX - dragStartX;
         const dy = e.clientY - dragStartY;
@@ -281,17 +281,15 @@ function createUI() {
     });
 
     document.addEventListener('mouseup', (e) => {
-        // 如果点击不是来自 U3，直接忽略
         if (!isClickFromIcon) {
             isClickFromIcon = false;
             return;
         }
         isClickFromIcon = false;
 
-        if (miniIcon._isDragging) {
+        if (isDragging || miniIcon._isDragging) {
             miniIcon._isDragging = false;
             miniIcon.style.cursor = 'grab';
-            // 保存位置
             localStorage.setItem('mini_icon_pos', JSON.stringify({
                 left: miniIcon.style.left,
                 top: miniIcon.style.top
@@ -299,33 +297,31 @@ function createUI() {
             return;
         }
 
-        // 如果没拖拽，执行点击逻辑
-        if (!isDragging) {
-            const u1 = document.getElementById('player-root');
-            const u2 = document.getElementById('player-rhythm-icon');
-            if (u1 && u2) {
-                const core = window.MusicPlayerCore;
-                const isRhythmMode = core && core.state.isRhythmMode;
-                const isHidden = u1.style.display === 'none' && u2.style.display === 'none';
+        // 点击逻辑
+        const u1 = document.getElementById('player-root');
+        const u2 = document.getElementById('player-rhythm-icon');
+        if (u1 && u2) {
+            const core = window.MusicPlayerCore;
+            const isRhythmMode = core && core.state.isRhythmMode;
+            const isHidden = u1.style.display === 'none' && u2.style.display === 'none';
 
-                if (isHidden) {
-                    const targetMode = miniIcon._lastVisibleMode !== undefined ? miniIcon._lastVisibleMode : isRhythmMode;
-                    if (targetMode) {
-                        u1.style.display = 'none';
-                        u2.style.display = 'flex';
-                    } else {
-                        u1.style.display = 'flex';
-                        u2.style.display = 'none';
-                    }
-                } else {
-                    if (u2.style.display === 'flex') {
-                        miniIcon._lastVisibleMode = true;
-                    } else {
-                        miniIcon._lastVisibleMode = false;
-                    }
+            if (isHidden) {
+                const targetMode = miniIcon._lastVisibleMode !== undefined ? miniIcon._lastVisibleMode : isRhythmMode;
+                if (targetMode) {
                     u1.style.display = 'none';
+                    u2.style.display = 'flex';
+                } else {
+                    u1.style.display = 'flex';
                     u2.style.display = 'none';
                 }
+            } else {
+                if (u2.style.display === 'flex') {
+                    miniIcon._lastVisibleMode = true;
+                } else {
+                    miniIcon._lastVisibleMode = false;
+                }
+                u1.style.display = 'none';
+                u2.style.display = 'none';
             }
         }
 
