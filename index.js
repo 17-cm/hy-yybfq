@@ -421,99 +421,45 @@ function showHelp() {
                 <p style="margin: 4px 0 0; opacity: 0.35; font-size: 12px; color: #1a1a1a;">hy.禾一</p>
             </div>
 
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <div style="background: #f5f5f5; border-radius: 12px; padding: 14px 16px; border: 1px solid #e8e8e8;">
-                    <div style="display: flex; gap: 12px; align-items: flex-start;">
-                        <span style="font-size: 18px;">🖱️</span>
-                        <div>
-                            <div style="font-weight: 600; font-size: 14px; color: #1a1a1a;">拖动 & 切换</div>
-                            <div style="opacity: 0.6; font-size: 13px; color: #1a1a1a;">拖动顶部「灵动岛」移动播放器 · 右侧按钮切换「律动/纯享」模式</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="background: #f5f5f5; border-radius: 12px; padding: 14px 16px; border: 1px solid #e8e8e8;">
-                    <div style="display: flex; gap: 12px; align-items: flex-start;">
-                        <span style="font-size: 18px;">🎚️</span>
-                        <div>
-                            <div style="font-weight: 600; font-size: 14px; color: #1a1a1a;">律动模式</div>
-                            <div style="opacity: 0.6; font-size: 13px; color: #1a1a1a;">点击「𓆝」最小化为律动条 · 左侧拖拽移动 · 右侧双击返回</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="background: #f5f5f5; border-radius: 12px; padding: 14px 16px; border: 1px solid #e8e8e8;">
-                    <div style="display: flex; gap: 12px; align-items: flex-start;">
-                        <span style="font-size: 18px;">🎶</span>
-                        <div>
-                            <div style="font-weight: 600; font-size: 14px; color: #1a1a1a;">添加歌曲</div>
-                            <div style="opacity: 0.6; font-size: 13px; color: #1a1a1a;">支持网易云 / 汽水音乐 · 单曲 / 歌单自动解析</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="background: #f5f5f5; border-radius: 12px; padding: 14px 16px; border: 1px solid #e8e8e8;">
-                    <div style="display: flex; gap: 12px; align-items: flex-start;">
-                        <span style="font-size: 18px;">📋</span>
-                        <div>
-                            <div style="font-weight: 600; font-size: 14px; color: #1a1a1a;">歌单导入</div>
-                            <div style="opacity: 0.6; font-size: 13px; color: #1a1a1a;">歌单导入最便捷，建议每个歌单不超过 20 首</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="background: #f5f5f5; border-radius: 12px; padding: 14px 16px; border: 1px solid #e8e8e8;">
-                    <div style="display: flex; gap: 12px; align-items: flex-start;">
-                        <span style="font-size: 18px;">💡</span>
-                        <div>
-                            <div style="font-weight: 600; font-size: 14px; color: #1a1a1a;">通道检测</div>
-                            <div style="opacity: 0.6; font-size: 13px; color: #1a1a1a;">检测汽水音乐和网易云通道可用性</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="background: #f5f5f5; border-radius: 12px; padding: 14px 16px; border: 1px solid #e8e8e8;">
-                    <div style="display: flex; gap: 12px; align-items: flex-start;">
-                        <span style="font-size: 18px;">⚡</span>
-                        <div>
-                            <div style="font-weight: 600; font-size: 14px; color: #1a1a1a;">一键缓存</div>
-                            <div style="opacity: 0.6; font-size: 13px; color: #1a1a1a;">导入歌曲或歌单后务必执行，避免刷新后链接失效</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="background: #f5f5f5; border-radius: 12px; padding: 14px 16px; border: 1px solid #e8e8e8;">
-                    <div style="display: flex; gap: 12px; align-items: flex-start;">
-                        <span style="font-size: 18px;">🎨</span>
-                        <div>
-                            <div style="font-weight: 600; font-size: 14px; color: #1a1a1a;">自定义外观</div>
-                            <div style="opacity: 0.6; font-size: 13px; color: #1a1a1a;">背景 · 封面 · RGB灯光 · 磨砂玻璃 · 尺寸全可调</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="background: #f5f5f5; border-radius: 12px; padding: 14px 16px; border: 1px solid #e8e8e8;">
-                    <div style="display: flex; gap: 12px; align-items: flex-start;">
-                        <span style="font-size: 18px;">✨</span>
-                        <div>
-                            <div style="font-weight: 600; font-size: 14px; color: #1a1a1a;">纯享模式</div>
-                            <div style="opacity: 0.6; font-size: 13px; color: #1a1a1a;">全屏歌词滚动 · 点击任意位置退出</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="background: #f5f5f5; border-radius: 12px; padding: 14px 16px; border: 1px solid #e8e8e8;">
-                    <div style="display: flex; gap: 12px; align-items: flex-start;">
-                        <span style="font-size: 18px;">🔄</span>
-                        <div>
-                            <div style="font-weight: 600; font-size: 14px; color: #1a1a1a;">开发中</div>
-                            <div style="opacity: 0.6; font-size: 13px; color: #1a1a1a;">未来将加入「自定义歌单」功能，支持整理和分类歌曲</div>
-                        </div>
-                    </div>
+            <!-- 功能按钮说明 -->
+            <div style="background: #f5f5f5; border-radius: 12px; padding: 14px 16px; border: 1px solid #e8e8e8; margin-bottom: 10px;">
+                <div style="font-weight: 600; font-size: 14px; color: #1a1a1a; margin-bottom: 8px;">功能按钮</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; font-size: 13px; color: #333;">
+                    <div><span style="font-weight: 500;">𓆟</span> 切换纯享模式</div>
+                    <div><span style="font-weight: 500;">𓆝</span> 切换律动模式</div>
+                    <div><span style="font-weight: 500;">♡</span> 自定义设置面板</div>
+                    <div><span style="font-weight: 500;">☰</span> 播放列表</div>
                 </div>
             </div>
 
-            <div style="text-align: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid #e8e8e8;">
+            <!-- 模式操作 -->
+            <div style="background: #f5f5f5; border-radius: 12px; padding: 14px 16px; border: 1px solid #e8e8e8; margin-bottom: 10px;">
+                <div style="font-weight: 600; font-size: 14px; color: #1a1a1a; margin-bottom: 6px;">模式操作</div>
+                <div style="font-size: 13px; color: #333; line-height: 1.8;">
+                    <div>• 纯享模式：点击屏幕任意位置返回播放器</div>
+                    <div>• 律动模式：点击播放器上的 𓆝 按钮返回播放器</div>
+                </div>
+            </div>
+
+            <!-- 核心亮点 -->
+            <div style="background: #f5f5f5; border-radius: 12px; padding: 14px 16px; border: 1px solid #e8e8e8; margin-bottom: 10px;">
+                <div style="font-weight: 600; font-size: 14px; color: #1a1a1a; margin-bottom: 6px;">核心亮点</div>
+                <div style="font-size: 13px; color: #333; line-height: 1.8;">
+                    <div>• 支持网易云音乐、汽水音乐分享链接解析</div>
+                    <div>• 支持单曲导入和歌单导入（网易云）</div>
+                    <div>• 粘贴链接时可直接粘贴完整分享文案，自动提取链接</div>
+                </div>
+            </div>
+
+            <!-- 重要提示 -->
+            <div style="background: #fff3e0; border-radius: 12px; padding: 14px 16px; border: 1px solid #ffcc80; margin-bottom: 10px;">
+                <div style="font-weight: 600; font-size: 14px; color: #e65100; margin-bottom: 4px;">⚠️ 重要提示</div>
+                <div style="font-size: 13px; color: #bf360c; line-height: 1.6;">
+                    导入歌曲或歌单后，请务必点击播放列表底部的 <strong>⟳ 一键缓存</strong>，否则刷新页面后歌曲链接可能失效。
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid #e8e8e8;">
                 <span style="opacity: 0.3; font-size: 12px; color: #1a1a1a;">开源 · 免费 · 仅供个人使用</span>
                 <div style="margin-top: 4px; opacity: 0.25; font-size: 11px; color: #1a1a1a;">📧 QQ: 2027932654</div>
             </div>
