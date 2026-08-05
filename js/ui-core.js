@@ -27,7 +27,7 @@ function createUI() {
     statusEl.className = 'player-status';
     document.body.appendChild(statusEl);
 
-    // ===== U2：律动图标 =====
+    // ===== U2：律动图标（无提示词，点击返回 + 拖拽移动） =====
     const rhythmIcon = document.createElement('div');
     rhythmIcon.id = 'player-rhythm-icon';
     rhythmIcon.className = 'player-rhythm-icon';
@@ -297,7 +297,7 @@ function createUI() {
     const appContainer = document.getElementById('app') || document.body;
     appContainer.appendChild(miniIcon);
 
-    console.log('✅ 最小化图标已创建');
+    console.log('✅ 最小化图标已创建（白底，边框和音符跟随灵动岛）');
 
     // ===== U3 交互：拖拽 + 点击切换 =====
     let drag = { active: false, offX: 0, offY: 0 };
