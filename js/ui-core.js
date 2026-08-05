@@ -206,7 +206,7 @@ function createUI() {
     `;
     document.body.appendChild(root);
 
-    // ===== U3：最小化悬浮图标（黑边白底黑音符 + 点击缩放） =====
+    // ===== U3：最小化悬浮图标（黑边白底黑音符） =====
     const miniIcon = document.createElement('div');
     miniIcon.id = 'player-mini-icon';
     miniIcon.textContent = '♫';
@@ -232,27 +232,23 @@ function createUI() {
         transition: transform 0.15s ease !important;
     `;
 
+    // 悬停放大
+    miniIcon.addEventListener('mouseenter', () => {
+        miniIcon.style.transform = 'scale(1.08)';
+    });
+    miniIcon.addEventListener('mouseleave', () => {
+        miniIcon.style.transform = 'scale(1)';
+    });
+
     // 挂载到酒馆主容器
     const appContainer = document.getElementById('app') || document.body;
     appContainer.appendChild(miniIcon);
 
-    console.log('✅ 最小化图标已创建（黑边白底黑音符 + 点击缩放）');
+    console.log('✅ 最小化图标已创建（黑边白底黑音符 + 拖拽修复）');
 
-    // ===== U3 交互：拖拽 + 点击区分 + 点击缩放 =====
+    // ===== U3 交互：点击 + 拖拽（修复版） =====
     let dragStartX = 0, dragStartY = 0;
     let isDragging = false;
-
-    // 悬停放大
-    miniIcon.addEventListener('mouseenter', () => {
-        if (!isDragging) {
-            miniIcon.style.transform = 'scale(1.08)';
-        }
-    });
-    miniIcon.addEventListener('mouseleave', () => {
-        if (!isDragging) {
-            miniIcon.style.transform = 'scale(1)';
-        }
-    });
 
     miniIcon.addEventListener('mousedown', (e) => {
         e.preventDefault();
@@ -291,9 +287,6 @@ function createUI() {
         e.stopPropagation();
         miniIcon.style.cursor = 'grab';
 
-        // 恢复大小（悬停效果由 mouseenter 恢复）
-        miniIcon.style.transform = 'scale(1)';
-
         // 如果发生了拖拽，保存位置并返回
         if (isDragging) {
             localStorage.setItem('mini_icon_pos', JSON.stringify({
@@ -304,7 +297,10 @@ function createUI() {
             return;
         }
 
-        // 如果没有拖拽，执行点击逻辑
+        // 恢复大小
+        miniIcon.style.transform = 'scale(1)';
+
+        // 点击逻辑
         const u1 = document.getElementById('player-root');
         const u2 = document.getElementById('player-rhythm-icon');
         if (u1 && u2) {
