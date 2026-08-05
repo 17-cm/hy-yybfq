@@ -31,7 +31,6 @@ function createUI() {
     rhythmIcon.className = 'player-rhythm-icon';
     rhythmIcon.style.display = 'none';
 
-    // 恢复 U2 保存的位置
     const savedRhythmPos = localStorage.getItem('rhythm_icon_pos');
     if (savedRhythmPos) {
         try {
@@ -99,7 +98,6 @@ function createUI() {
         const y = cy - rhythmDrag.offY;
         rhythmIcon.style.left = x + 'px';
         rhythmIcon.style.top = y + 'px';
-        // 实时同步到 core
         const core = window.MusicPlayerCore;
         if (core) {
             core.state.rhythmIconPos = { x, y };
@@ -121,7 +119,6 @@ function createUI() {
                     core.saveData();
                 }
             } else {
-                // 保存位置
                 const pos = {
                     left: rhythmIcon.style.left,
                     top: rhythmIcon.style.top
@@ -135,7 +132,6 @@ function createUI() {
                     };
                     core.saveData();
                 }
-                console.log('💾 U2 位置已保存:', pos);
             }
         }
     };
@@ -273,7 +269,7 @@ function createUI() {
                     <div id="list-box" class="list-box"></div>
                     <div class="panel-list-btns">
                         <button type="button" id="btn-add" class="panel-action-btn">+ 添加歌曲</button>
-                        <button type="button" id="btn-cache-all" class="panel-action-btn">⟳ 一键缓存</button>
+                        <button type="button" id="btn-cache-all" class="panel-action-btn">⟳ 一键重新获取</button>
                     </div>
                 </div>
 
@@ -477,7 +473,6 @@ function updateView() {
     root.style.left = core.state.playerPos.x + 'px';
     root.style.top = core.state.playerPos.y + 'px';
 
-    // ===== U2 位置从 localStorage 读取 =====
     const savedRhythmPos = localStorage.getItem('rhythm_icon_pos');
     if (savedRhythmPos) {
         try {
@@ -485,7 +480,6 @@ function updateView() {
             if (pos.left && pos.top) {
                 rhythmIcon.style.left = pos.left;
                 rhythmIcon.style.top = pos.top;
-                // 同步更新 core
                 core.state.rhythmIconPos = {
                     x: parseInt(pos.left),
                     y: parseInt(pos.top)
