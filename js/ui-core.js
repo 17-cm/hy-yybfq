@@ -27,10 +27,11 @@ function createUI() {
     statusEl.className = 'player-status';
     document.body.appendChild(statusEl);
 
-    // ===== U2：律动图标（无提示词，点击返回 + 拖拽移动） =====
+    // ===== U2：律动图标 =====
     const rhythmIcon = document.createElement('div');
     rhythmIcon.id = 'player-rhythm-icon';
     rhythmIcon.className = 'player-rhythm-icon';
+    rhythmIcon.style.display = 'none'; // 默认隐藏
 
     let bars = '';
     const totalBars = 60;
@@ -97,6 +98,10 @@ function createUI() {
                 const core = window.MusicPlayerCore;
                 if (core) {
                     core.state.isRhythmMode = false;
+                    // 切换回 U1
+                    const root = document.getElementById('player-root');
+                    if (root) root.style.display = 'flex';
+                    rhythmIcon.style.display = 'none';
                     window.updateView();
                     core.saveData();
                 }
@@ -119,6 +124,7 @@ function createUI() {
     // ===== U1：播放器主体 =====
     const root = document.createElement('div');
     root.id = 'player-root';
+    root.style.display = 'flex'; // 默认显示
     root.innerHTML = `
         <div id="player-rgb-border" class="player-rgb-border"></div>
         <div id="player-island" class="player-island"></div>
@@ -297,9 +303,9 @@ function createUI() {
     const appContainer = document.getElementById('app') || document.body;
     appContainer.appendChild(miniIcon);
 
-    console.log('✅ 最小化图标已创建（白底，边框和音符跟随灵动岛）');
+    console.log('✅ 最小化图标已创建');
 
-    // ===== U3 交互：拖拽 + 点击切换 =====
+    // ===== U3 交互：拖拽 + 点击切换 U1/U2 显示 =====
     let drag = { active: false, offX: 0, offY: 0 };
     let hasMoved = false;
     let startX = 0, startY = 0;
@@ -343,30 +349,40 @@ function createUI() {
                     top: miniIcon.style.top
                 }));
             } else {
+                // ===== 点击切换 U1/U2 显示状态 =====
                 const u1 = document.getElementById('player-root');
                 const u2 = document.getElementById('player-rhythm-icon');
-                if (u1 && u2) {
-                    const core = window.MusicPlayerCore;
-                    const isRhythmMode = core && core.state.isRhythmMode;
-                    const isHidden = u1.style.display === 'none' && u2.style.display === 'none';
-
-                    if (isHidden) {
-                        const targetMode = miniIcon._lastVisibleMode !== undefined ? miniIcon._lastVisibleMode : isRhythmMode;
-                        if (targetMode) {
+                const core = window.MusicPlayerCore;
+                
+                if (u1 && u2 && core) {
+                    // 判断当前是否显示
+                    const isU1Visible = u1.style.display !== 'none';
+                    const isU2Visible = u2.style.display !== 'none';
+                    const isAnyVisible = isU1Visible || isU2Visible;
+                    
+                    if (isAnyVisible) {
+                        // 当前有显示 → 全部隐藏
+                        u1.style.display = 'none';
+                        u2.style.display = 'none';
+                        // 保存隐藏状态
+                        core._forceHidden = true;
+                        console.log('🔒 播放器已隐藏');
+                    } else {
+                        // 当前全部隐藏 → 根据模式显示对应的
+                        if (core.state.isRhythmMode) {
                             u1.style.display = 'none';
                             u2.style.display = 'flex';
                         } else {
                             u1.style.display = 'flex';
                             u2.style.display = 'none';
                         }
-                    } else {
-                        if (u2.style.display === 'flex') {
-                            miniIcon._lastVisibleMode = true;
-                        } else {
-                            miniIcon._lastVisibleMode = false;
-                        }
-                        u1.style.display = 'none';
-                        u2.style.display = 'none';
+                        core._forceHidden = false;
+                        console.log('🔓 播放器已显示');
+                    }
+                    
+                    // 更新视图（只更新样式，不改变 display）
+                    if (typeof window.updateView === 'function') {
+                        window.updateView();
                     }
                 }
             }
@@ -378,7 +394,6 @@ function createUI() {
 
     document.addEventListener('mousemove', handleDragMove);
     document.addEventListener('touchmove', handleDragMove);
-
     document.addEventListener('mouseup', handleDragEnd);
     document.addEventListener('touchend', handleDragEnd);
 
@@ -404,31 +419,12 @@ function createUI() {
 }
 
 // ============================================================
-// 更新视图
+// 更新视图（只更新样式，不控制 display）
 // ============================================================
 
 function updateView() {
     const core = window.MusicPlayerCore;
     if (!core) return;
-
-    // ===== 新增：检查强制隐藏状态 =====
-    if (core._forceHidden === true) {
-        const root = document.getElementById('player-root');
-        const rhythmIcon = document.getElementById('player-rhythm-icon');
-        if (root) root.style.display = 'none';
-        if (rhythmIcon) rhythmIcon.style.display = 'none';
-        return;
-    }
-
-    // ===== 检查设置中的隐藏状态 =====
-    const settings = window.extension_settings?.['music_player'] || {};
-    if (settings.playerHidden === true) {
-        const root = document.getElementById('player-root');
-        const rhythmIcon = document.getElementById('player-rhythm-icon');
-        if (root) root.style.display = 'none';
-        if (rhythmIcon) rhythmIcon.style.display = 'none';
-        return;
-    }
 
     const root = document.getElementById('player-root');
     const rootRgb = document.getElementById('player-rgb-border');
@@ -438,11 +434,13 @@ function updateView() {
 
     if (!root || !inner || !rhythmIcon) return;
 
+    // ===== 位置更新 =====
     root.style.left = core.state.playerPos.x + 'px';
     root.style.top = core.state.playerPos.y + 'px';
     rhythmIcon.style.left = core.state.rhythmIconPos.x + 'px';
     rhythmIcon.style.top = core.state.rhythmIconPos.y + 'px';
 
+    // ===== 样式更新 =====
     root.style.setProperty('--border-w', cfg.borderWidth);
     root.style.setProperty('--rgb-single', cfg.rgbColor);
     root.style.setProperty('--player-h', cfg.playerHeight);
@@ -452,6 +450,7 @@ function updateView() {
     root.style.width = cfg.playerWidth;
     rhythmIcon.style.setProperty('--rgb-single', cfg.rgbColor);
 
+    // ===== 灵动岛样式 =====
     const island = document.getElementById('player-island');
     if (island) {
         island.className = 'player-island';
@@ -466,6 +465,7 @@ function updateView() {
         }
     }
 
+    // ===== 背景 =====
     let currentBg = core.state.panel ? cfg.expandedBg : cfg.collapsedBg;
 
     if (core.state.glass) {
@@ -486,6 +486,7 @@ function updateView() {
         inner.style.backdropFilter = 'none';
     }
 
+    // ===== 封面 =====
     const coverEl = document.getElementById('player-cover');
     if (coverEl) {
         coverEl.style.backgroundImage = `url("${cfg.cover}")`;
@@ -493,6 +494,7 @@ function updateView() {
         coverEl.style.height = cfg.coverHeight + 'px';
     }
 
+    // ===== RGB 边框 =====
     if (rootRgb) {
         rootRgb.className = 'player-rgb-border';
         const mode = core.state.rgbMode;
@@ -505,22 +507,19 @@ function updateView() {
         }
     }
 
+    // ===== 律动图标样式 =====
     rhythmIcon.className = 'player-rhythm-icon';
     if (core.state.isPlaying) rhythmIcon.classList.add('playing');
     if (core.state.rgbMode === 1) rhythmIcon.classList.add('rgb-single');
     if (core.state.rgbMode === 2) rhythmIcon.classList.add('rgb-rainbow');
 
-    if (core.state.isRhythmMode) {
-        root.style.display = 'none';
-        rhythmIcon.style.display = 'flex';
-    } else {
-        root.style.display = 'flex';
-        rhythmIcon.style.display = 'none';
-    }
+    // ===== ⭐ 不再控制 display，由 U3 点击控制 =====
 
+    // ===== 纯享模式 =====
     root.classList.toggle('pure-mode', core.state.isPureMode);
     updatePureLyrics();
 
+    // ===== 按钮文字 =====
     const modeBtn = document.getElementById('btn-play-mode');
     if (modeBtn) {
         const svgs = [
@@ -531,6 +530,7 @@ function updateView() {
         modeBtn.innerHTML = svgs[core.state.playMode];
     }
 
+    // ===== 歌曲信息 =====
     const t = core.playlist[core.index];
     const titleEl = document.getElementById('player-title');
     const artistEl = document.getElementById('player-artist');
@@ -709,6 +709,38 @@ function renderPureLyrics(currentIndex) {
 }
 
 // ============================================================
+// 显示/隐藏控制（供外部调用）
+// ============================================================
+
+function showPlayer() {
+    const core = window.MusicPlayerCore;
+    const root = document.getElementById('player-root');
+    const rhythmIcon = document.getElementById('player-rhythm-icon');
+    
+    if (!root || !rhythmIcon || !core) return;
+    
+    if (core.state.isRhythmMode) {
+        root.style.display = 'none';
+        rhythmIcon.style.display = 'flex';
+    } else {
+        root.style.display = 'flex';
+        rhythmIcon.style.display = 'none';
+    }
+    core._forceHidden = false;
+    window.updateView();
+}
+
+function hidePlayer() {
+    const core = window.MusicPlayerCore;
+    const root = document.getElementById('player-root');
+    const rhythmIcon = document.getElementById('player-rhythm-icon');
+    
+    if (root) root.style.display = 'none';
+    if (rhythmIcon) rhythmIcon.style.display = 'none';
+    if (core) core._forceHidden = true;
+}
+
+// ============================================================
 // 暴露到全局
 // ============================================================
 
@@ -719,3 +751,5 @@ window.updateSettingsPanel = updateSettingsPanel;
 window.updateLyrics = updateLyrics;
 window.updatePureLyrics = updatePureLyrics;
 window.renderPureLyrics = renderPureLyrics;
+window.showPlayer = showPlayer;
+window.hidePlayer = hidePlayer;
