@@ -49,7 +49,6 @@ function createUI() {
         bars += `<div class="rhythm-bar ${isEdge ? 'edge-bar' : ''}" style="--h:${h}px; --d:${d}s; --s:${s}s"></div>`;
     }
 
-    // 去掉提示词，只保留星星和律动条
     rhythmIcon.innerHTML = `
         <div class="rhythm-star star-left">✦</div>
         <div class="rhythm-star star-right">✦</div>
@@ -95,7 +94,6 @@ function createUI() {
             rhythmDrag.active = false;
             rhythmIcon.style.cursor = 'default';
             if (!rhythmHasMoved) {
-                // 点击返回播放器
                 const core = window.MusicPlayerCore;
                 if (core) {
                     core.state.isRhythmMode = false;
@@ -103,7 +101,6 @@ function createUI() {
                     core.saveData();
                 }
             } else {
-                // 保存位置
                 localStorage.setItem('rhythm_icon_pos', JSON.stringify({
                     left: rhythmIcon.style.left,
                     top: rhythmIcon.style.top
@@ -274,9 +271,6 @@ function createUI() {
         height: 40px !important;
         border-radius: 50% !important;
         background: #ffffff !important;
-        color: #000000 !important;
-        font-size: 22px !important;
-        font-weight: bold !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -285,7 +279,7 @@ function createUI() {
         box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
         cursor: grab !important;
         user-select: none !important;
-        transition: transform 0.2s ease !important;
+        transition: transform 0.2s ease, border-color 0.3s ease, color 0.3s ease !important;
     `;
 
     // 悬停效果
@@ -300,7 +294,7 @@ function createUI() {
     const appContainer = document.getElementById('app') || document.body;
     appContainer.appendChild(miniIcon);
 
-    console.log('✅ 最小化图标已创建（黑边白底黑音符）');
+    console.log('✅ 最小化图标已创建（黑边白底，颜色跟随配置）');
 
     // ===== U3 交互：拖拽 + 点击切换 =====
     let drag = { active: false, offX: 0, offY: 0 };
@@ -346,7 +340,6 @@ function createUI() {
                     top: miniIcon.style.top
                 }));
             } else {
-                // 点击切换逻辑
                 const u1 = document.getElementById('player-root');
                 const u2 = document.getElementById('player-rhythm-icon');
                 if (u1 && u2) {
@@ -532,6 +525,18 @@ function updateView() {
     if (artistEl) artistEl.innerText = t ? t.artist : '功能按钮查看使用说明';
 
     updateSettingsPanel();
+
+    // ===== 同步最小化图标颜色 =====
+    const miniIcon = document.getElementById('player-mini-icon');
+    if (miniIcon) {
+        const mode = core.state.rgbMode;
+        let color = cfg.borderColor;
+        if (mode === 1 || mode === 2) {
+            color = cfg.rgbColor;
+        }
+        miniIcon.style.borderColor = color;
+        miniIcon.style.color = color;
+    }
 }
 
 function updateSettingsPanel() {
