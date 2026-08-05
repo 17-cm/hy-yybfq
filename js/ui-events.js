@@ -64,6 +64,9 @@ function showUI() {
     const core = window.MusicPlayerCore;
     if (!core) return;
 
+    // ===== 清除强制隐藏标记 =====
+    core._forceHidden = false;
+
     const root = document.getElementById('player-root');
     const rhythmIcon = document.getElementById('player-rhythm-icon');
 
@@ -84,6 +87,11 @@ function hideUI() {
 
     const root = document.getElementById('player-root');
     const rhythmIcon = document.getElementById('player-rhythm-icon');
+    const core = window.MusicPlayerCore;
+    
+    // ===== 设置强制隐藏标记 =====
+    if (core) core._forceHidden = true;
+    
     if (root) root.style.display = 'none';
     if (rhythmIcon) rhythmIcon.style.display = 'none';
 }
