@@ -206,118 +206,39 @@ function createUI() {
     `;
     document.body.appendChild(root);
 
-    // ===== U2：最小化悬浮图标 =====
+    // ===== U2：最小化悬浮图标（强制显示版） =====
     const miniIcon = document.createElement('div');
     miniIcon.id = 'player-mini-icon';
     miniIcon.textContent = '🎵';
+    // 用最强制的方式设置样式，确保出现在屏幕中央
     miniIcon.style.cssText = `
         position: fixed !important;
-        bottom: 80px !important;
-        right: 20px !important;
-        width: 40px !important;
-        height: 40px !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        width: 60px !important;
+        height: 60px !important;
         border-radius: 50% !important;
-        background: rgba(20,20,20,0.85) !important;
+        background: #ff0000 !important;
         color: #ffffff !important;
-        font-size: 20px !important;
+        font-size: 30px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        z-index: 9999999 !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-        backdrop-filter: blur(4px) !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
-        cursor: grab !important;
-        user-select: none !important;
-        transition: transform 0.2s ease !important;
-        touch-action: none !important;
+        z-index: 99999999 !important;
+        border: 3px solid #00ff00 !important;
+        cursor: pointer !important;
+        box-shadow: 0 0 30px rgba(255,0,0,0.8) !important;
+        opacity: 1 !important;
+        visibility: visible !important;
     `;
     document.body.appendChild(miniIcon);
 
-    // ===== 拖拽功能 =====
-    let isDragging = false;
-    let startX, startY, origX, origY;
+    // ===== 强制显示并通知 =====
+    console.log('🔥 强制创建最小化图标（测试版），应该在屏幕中央出现红色圆形');
 
-    miniIcon.addEventListener('mousedown', (e) => {
-        isDragging = false;
-        const rect = miniIcon.getBoundingClientRect();
-        startX = e.clientX;
-        startY = e.clientY;
-        origX = rect.left;
-        origY = rect.top;
-        miniIcon.style.cursor = 'grabbing';
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        miniIcon.style.left = (origX + dx) + 'px';
-        miniIcon.style.top = (origY + dy) + 'px';
-        miniIcon.style.right = 'auto';
-        miniIcon.style.bottom = 'auto';
-    });
-
-    document.addEventListener('mouseup', (e) => {
-        if (isDragging) {
-            isDragging = false;
-            miniIcon.style.cursor = 'grab';
-            // 保存位置
-            localStorage.setItem('mini_icon_pos', JSON.stringify({
-                left: miniIcon.style.left,
-                top: miniIcon.style.top
-            }));
-        }
-    });
-
-    // 区分点击和拖拽
-    miniIcon.addEventListener('mousedown', (e) => {
-        miniIcon._startX = e.clientX;
-        miniIcon._startY = e.clientY;
-        miniIcon._isDragging = false;
-    });
-
-    miniIcon.addEventListener('mousemove', (e) => {
-        if (!miniIcon._startX && !miniIcon._startY) return;
-        const dx = e.clientX - miniIcon._startX;
-        const dy = e.clientY - miniIcon._startY;
-        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-            miniIcon._isDragging = true;
-            miniIcon.style.cursor = 'grabbing';
-            const rect = miniIcon.getBoundingClientRect();
-            miniIcon._origX = rect.left;
-            miniIcon._origY = rect.top;
-            miniIcon._startX = e.clientX;
-            miniIcon._startY = e.clientY;
-        }
-    });
-
-    document.addEventListener('mousemove', (e) => {
-        if (!miniIcon._isDragging) return;
-        const dx = e.clientX - miniIcon._startX;
-        const dy = e.clientY - miniIcon._startY;
-        miniIcon.style.left = (miniIcon._origX + dx) + 'px';
-        miniIcon.style.top = (miniIcon._origY + dy) + 'px';
-        miniIcon.style.right = 'auto';
-        miniIcon.style.bottom = 'auto';
-    });
-
-    document.addEventListener('mouseup', (e) => {
-        if (miniIcon._isDragging) {
-            miniIcon._isDragging = false;
-            miniIcon.style.cursor = 'grab';
-            localStorage.setItem('mini_icon_pos', JSON.stringify({
-                left: miniIcon.style.left,
-                top: miniIcon.style.top
-            }));
-        }
-        miniIcon._startX = null;
-        miniIcon._startY = null;
-    });
-
-    // ===== 点击切换播放器 =====
-    miniIcon.addEventListener('click', (e) => {
-        if (miniIcon._isDragging) return;
+    // ===== 点击切换播放器（简化版） =====
+    miniIcon.addEventListener('click', () => {
         const u1 = document.getElementById('player-root');
         const u1a = document.getElementById('player-rhythm-icon');
         if (u1 && u1a) {
@@ -335,26 +256,6 @@ function createUI() {
             }
         }
     });
-
-    // ===== 恢复保存的位置 =====
-    const savedPos = localStorage.getItem('mini_icon_pos');
-    if (savedPos) {
-        try {
-            const pos = JSON.parse(savedPos);
-            if (pos.left) miniIcon.style.left = pos.left;
-            if (pos.top) miniIcon.style.top = pos.top;
-            miniIcon.style.right = 'auto';
-            miniIcon.style.bottom = 'auto';
-        } catch (e) {}
-    }
-
-    // ===== 根据设置决定图标初始状态 =====
-    const settings = window.extension_settings?.['music_player'] || {};
-    if (settings.miniIconVisible !== false) {
-        miniIcon.style.display = 'flex';
-    } else {
-        miniIcon.style.display = 'none';
-    }
 }
 
 // ============================================================
