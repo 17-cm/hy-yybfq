@@ -96,9 +96,10 @@ function initPlayer() {
 
     setTimeout(() => {
         const settings = getExtensionSettings();
-        const root = document.getElementById('player-root');
-        // 播放器默认显示
-        if (root) root.style.display = 'flex';
+        const icon = document.getElementById('player-mini-icon');
+        if (icon) {
+            icon.style.display = settings.miniIconVisible !== false ? 'flex' : 'none';
+        }
     }, 300);
 
     bindExtensionEvents();
@@ -155,46 +156,6 @@ function createExtensionPanel() {
 
     container.insertAdjacentHTML('beforeend', html);
 
-    // ===== 延迟创建最小化悬浮图标 =====
-    setTimeout(() => {
-        const oldIcon = document.getElementById('player-mini-icon');
-        if (oldIcon) oldIcon.remove();
-
-        const miniIcon = document.createElement('div');
-        miniIcon.id = 'player-mini-icon';
-        miniIcon.textContent = '🎵';
-        miniIcon.style.cssText = `
-            position: fixed !important;
-            bottom: 80px !important;
-            right: 20px !important;
-            width: 40px !important;
-            height: 40px !important;
-            border-radius: 50% !important;
-            background: rgba(20,20,20,0.85) !important;
-            color: #ffffff !important;
-            font-size: 20px !important;
-            display: ${settings.miniIconVisible !== false ? 'flex' : 'none'} !important;
-            align-items: center !important;
-            justify-content: center !important;
-            z-index: 9999999 !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
-            backdrop-filter: blur(4px) !important;
-            border: 1px solid rgba(255,255,255,0.1) !important;
-            cursor: pointer !important;
-            user-select: none !important;
-            transition: transform 0.2s ease !important;
-        `;
-        document.body.appendChild(miniIcon);
-
-        // 点击图标切换播放器
-        miniIcon.addEventListener('click', () => {
-            const root = document.getElementById('player-root');
-            if (root) {
-                root.style.display = root.style.display === 'none' ? 'flex' : 'none';
-            }
-        });
-    }, 500);
-
     // ===== 事件绑定 =====
     const drawerToggle = document.querySelector('#music-player-extension .inline-drawer-toggle');
     if (drawerToggle) {
@@ -234,14 +195,6 @@ function createExtensionPanel() {
             }
 
             miniToggleBtn.textContent = settings.miniIconVisible ? '隐藏最小化图标' : '显示最小化图标';
-
-            if (!settings.miniIconVisible) {
-                const root = document.getElementById('player-root');
-                if (root) root.style.display = 'none';
-            } else {
-                const root = document.getElementById('player-root');
-                if (root) root.style.display = 'flex';
-            }
         });
     }
 
