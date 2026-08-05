@@ -246,12 +246,14 @@ function createUI() {
 
     console.log('✅ 最小化图标已创建（黑边白底黑音符）');
 
-    // ===== U3 交互：拖拽 + 点击区分（借鉴玉子手机） =====
+    // ===== U3 交互：拖拽 + 点击区分（修复全局触发问题） =====
     let dragStartX = 0, dragStartY = 0;
     let isDragging = false;
+    let isClickFromIcon = false;
 
     miniIcon.addEventListener('mousedown', (e) => {
         e.preventDefault();
+        isClickFromIcon = true;
         dragStartX = e.clientX;
         dragStartY = e.clientY;
         isDragging = false;
@@ -259,6 +261,7 @@ function createUI() {
     });
 
     document.addEventListener('mousemove', (e) => {
+        if (!isClickFromIcon) return;
         if (!miniIcon._isDragging) return;
         e.preventDefault();
         const dx = e.clientX - dragStartX;
@@ -278,6 +281,13 @@ function createUI() {
     });
 
     document.addEventListener('mouseup', (e) => {
+        // 如果点击不是来自 U3，直接忽略
+        if (!isClickFromIcon) {
+            isClickFromIcon = false;
+            return;
+        }
+        isClickFromIcon = false;
+
         if (miniIcon._isDragging) {
             miniIcon._isDragging = false;
             miniIcon.style.cursor = 'grab';
