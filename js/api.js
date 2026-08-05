@@ -1,54 +1,29 @@
 /**
  * api.js - 音乐播放器网络请求模块
- * 版本: BugPK 网易云接口版
+ * 版本: 简化版
  * 作者: hy.禾一
- * 说明：使用 https://api.bugpk.com/api/163_music 作为数据源
+ * 说明：直接丢链接给 API，不判断类型
  */
 
 // ==========================================
 // 接口配置
 // ==========================================
 const BASE_URL = 'https://api.bugpk.com/api/163_music';
-const DEFAULT_LEVEL = 'exhigh';
+const DEFAULT_LEVEL = 'exhigh'; // 默认极高音质
 
 // ==========================================
-// 工具函数：提取纯数字ID（仅用于歌单解析）
-// ==========================================
-function extractNeteaseId(link) {
-    if (!link) return null;
-    const strLink = String(link).trim();
-    if (/^\d+$/.test(strLink)) return strLink;
-    const match = strLink.match(/id=(\d+)/) || strLink.match(/song\/(\d+)/);
-    return match ? match[1] : null;
-}
-
-function isNeteaseLink(url) {
-    const str = String(url).trim();
-    return str.includes('music.163.com') || str.includes('163cn.tv') || /^\d+$/.test(str);
-}
-
-function isPlaylistLink(url) {
-    const str = String(url).trim();
-    return str.includes('playlist') || str.includes('163cn.tv') || /^\d+$/.test(str);
-}
-
-// ==========================================
-// 1. 获取单曲信息
+// 1. 获取单曲信息（也支持歌单，但只返回第一首）
 // ==========================================
 async function fetchNeteaseSongInfo(link) {
     try {
         const url = link.trim();
-        if (!url) throw new Error('请输入链接或歌曲ID');
+        if (!url) throw new Error('请输入链接');
 
         const response = await fetch(`${BASE_URL}?type=json&url=${encodeURIComponent(url)}&level=${DEFAULT_LEVEL}`);
         if (!response.ok) throw new Error(`请求失败: ${response.status}`);
 
         const data = await response.json();
         if (data.status !== 200) throw new Error(data.message || '解析失败');
-
-        let songId = null;
-        const idMatch = data.url?.match(/id=(\d+)/) || url.match(/id=(\d+)/);
-        if (idMatch) songId = idMatch[1];
 
         return {
             title: data.name || '未知歌曲',
@@ -57,48 +32,29 @@ async function fetchNeteaseSongInfo(link) {
             lyrics: data.lyric || '',
             cover: data.pic || '',
             duration: '0:00',
-            neteaseId: songId
+            link: url  // 保存原始链接用于刷新
         };
     } catch (error) {
-        console.error('单曲解析失败:', error);
+        console.error('解析失败:', error);
         throw error;
     }
 }
 
 // ==========================================
-// 2. 刷新播放链接（带自动重试）
+// 2. 刷新播放链接
 // ==========================================
-async function refreshSongUrl(link, maxRetries = 3) {
-    // 如果是纯数字，补全为完整链接
-    if (/^\d+$/.test(link)) {
-        link = `https://music.163.com/song?id=${link}`;
+async function refreshSongUrl(link) {
+    if (!link) return null;
+    try {
+        const response = await fetch(`${BASE_URL}?type=json&url=${encodeURIComponent(link)}&level=${DEFAULT_LEVEL}`);
+        if (!response.ok) return null;
+        const data = await response.json();
+        if (data.status !== 200) return null;
+        return data.url || null;
+    } catch (e) {
+        console.error('刷新链接失败:', e);
+        return null;
     }
-    
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-            const response = await fetch(`${BASE_URL}?type=json&url=${encodeURIComponent(link)}&level=${DEFAULT_LEVEL}`);
-            if (!response.ok) continue;
-            
-            const data = await response.json();
-            if (data.status !== 200) continue;
-            
-            const url = data.url || null;
-            if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
-                console.log(`✅ 网易链接刷新成功 (尝试 ${attempt + 1})`);
-                return url;
-            }
-        } catch (e) {
-            console.warn(`⚠️ 网易链接刷新失败 (尝试 ${attempt + 1}):`, e);
-        }
-        
-        // 等待后重试
-        if (attempt < maxRetries - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-        }
-    }
-    
-    console.error('❌ 网易链接刷新失败，已达最大重试次数');
-    return null;
 }
 
 // ==========================================
@@ -106,40 +62,55 @@ async function refreshSongUrl(link, maxRetries = 3) {
 // ==========================================
 async function fetchNeteasePlaylist(link) {
     try {
-        let playlistId = extractNeteaseId(link);
-        if (!playlistId) {
-            if (/^\d+$/.test(link.trim())) {
-                playlistId = link.trim();
-            } else {
-                throw new Error('无法提取歌单ID');
-            }
+        const url = link.trim();
+        if (!url) throw new Error('请输入歌单链接');
+
+        // 直接用链接请求，API 会识别是歌单
+        const response = await fetch(`${BASE_URL}?type=json&url=${encodeURIComponent(url)}&level=${DEFAULT_LEVEL}`);
+        if (!response.ok) throw new Error(`请求失败: ${response.status}`);
+
+        const data = await response.json();
+        if (data.status !== 200) throw new Error(data.message || '解析失败');
+
+        // 如果是歌单，API 会返回 tracks
+        if (data.tracks && data.tracks.length > 0) {
+            return {
+                name: data.name || '网易云歌单',
+                creator: data.creator || '未知',
+                description: data.description || '',
+                coverImgUrl: data.pic || '',
+                trackCount: data.tracks.length,
+                tracks: data.tracks.map(track => ({
+                    id: track.id,
+                    name: track.name || '未知歌曲',
+                    artists: track.ar_name || '未知艺术家',
+                    album: track.album || '未知专辑',
+                    picUrl: track.pic || '',
+                    link: `https://music.163.com/song?id=${track.id}`
+                }))
+            };
         }
 
-        const response = await fetch(`${BASE_URL}?type=playlist&id=${playlistId}`);
-        if (!response.ok) throw new Error(`网络请求失败: ${response.status}`);
-
-        const result = await response.json();
-        if (result.code !== 200) throw new Error(result.msg || '获取歌单失败');
-
-        const playlist = result.data;
-        if (!playlist.tracks || playlist.tracks.length === 0) {
-            throw new Error('该歌单为空');
+        // 如果返回的不是歌单，尝试单曲
+        if (data.name && data.url) {
+            return {
+                name: '单曲',
+                creator: data.ar_name || '未知',
+                description: '',
+                coverImgUrl: data.pic || '',
+                trackCount: 1,
+                tracks: [{
+                    id: null,
+                    name: data.name,
+                    artists: data.ar_name || '未知艺术家',
+                    album: data.album || '未知专辑',
+                    picUrl: data.pic || '',
+                    link: url
+                }]
+            };
         }
 
-        return {
-            name: playlist.name || '网易云歌单',
-            creator: playlist.creator || '未知',
-            description: playlist.description || '',
-            coverImgUrl: playlist.coverImgUrl || '',
-            trackCount: playlist.trackCount || playlist.tracks.length,
-            tracks: playlist.tracks.map(track => ({
-                id: track.id,
-                name: track.name || '未知歌曲',
-                artists: track.artists || '未知艺术家',
-                album: track.album || '未知专辑',
-                picUrl: track.picUrl || ''
-            }))
-        };
+        throw new Error('未找到歌曲或歌单');
     } catch (error) {
         console.error('获取歌单失败:', error);
         throw error;
@@ -152,6 +123,3 @@ async function fetchNeteasePlaylist(link) {
 window.refreshSongUrl = refreshSongUrl;
 window.fetchNeteaseSongInfo = fetchNeteaseSongInfo;
 window.fetchNeteasePlaylist = fetchNeteasePlaylist;
-window.isNeteaseLink = isNeteaseLink;
-window.isPlaylistLink = isPlaylistLink;
-window.extractNeteaseId = extractNeteaseId;
