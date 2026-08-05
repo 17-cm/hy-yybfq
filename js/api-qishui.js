@@ -50,7 +50,7 @@ async function fetchQishuiSongInfo(link) {
             duration: '0:00',
             neteaseId: songId,
             source: 'qishui',
-            _originalLink: url
+            _originalLink: url  // 存分享链接，不是直链
         };
     } catch (error) {
         console.error('汽水音乐解析失败:', error);
