@@ -206,7 +206,7 @@ function createUI() {
     `;
     document.body.appendChild(root);
 
-    // ===== U2：最小化悬浮图标（独立于播放器） =====
+    // ===== U2：最小化悬浮图标 =====
     const miniIcon = document.createElement('div');
     miniIcon.id = 'player-mini-icon';
     miniIcon.textContent = '🎵';
@@ -220,35 +220,133 @@ function createUI() {
         background: rgba(20,20,20,0.85) !important;
         color: #ffffff !important;
         font-size: 20px !important;
-        display: none !important;
+        display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         z-index: 9999999 !important;
         box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
         backdrop-filter: blur(4px) !important;
         border: 1px solid rgba(255,255,255,0.1) !important;
-        cursor: pointer !important;
+        cursor: grab !important;
         user-select: none !important;
         transition: transform 0.2s ease !important;
+        touch-action: none !important;
     `;
-    
-    // 悬停效果
-    miniIcon.addEventListener('mouseenter', () => {
-        miniIcon.style.transform = 'scale(1.05)';
+    document.body.appendChild(miniIcon);
+
+    // ===== 拖拽功能 =====
+    let isDragging = false;
+    let startX, startY, origX, origY;
+
+    miniIcon.addEventListener('mousedown', (e) => {
+        isDragging = false;
+        const rect = miniIcon.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        origX = rect.left;
+        origY = rect.top;
+        miniIcon.style.cursor = 'grabbing';
     });
-    miniIcon.addEventListener('mouseleave', () => {
-        miniIcon.style.transform = 'scale(1)';
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        miniIcon.style.left = (origX + dx) + 'px';
+        miniIcon.style.top = (origY + dy) + 'px';
+        miniIcon.style.right = 'auto';
+        miniIcon.style.bottom = 'auto';
     });
-    
-    // 点击切换播放器显示
-    miniIcon.addEventListener('click', () => {
-        const root = document.getElementById('player-root');
-        if (root) {
-            root.style.display = root.style.display === 'none' ? 'flex' : 'none';
+
+    document.addEventListener('mouseup', (e) => {
+        if (isDragging) {
+            isDragging = false;
+            miniIcon.style.cursor = 'grab';
+            // 保存位置
+            localStorage.setItem('mini_icon_pos', JSON.stringify({
+                left: miniIcon.style.left,
+                top: miniIcon.style.top
+            }));
         }
     });
-    
-    document.body.appendChild(miniIcon);
+
+    // 区分点击和拖拽
+    miniIcon.addEventListener('mousedown', (e) => {
+        miniIcon._startX = e.clientX;
+        miniIcon._startY = e.clientY;
+        miniIcon._isDragging = false;
+    });
+
+    miniIcon.addEventListener('mousemove', (e) => {
+        if (!miniIcon._startX && !miniIcon._startY) return;
+        const dx = e.clientX - miniIcon._startX;
+        const dy = e.clientY - miniIcon._startY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+            miniIcon._isDragging = true;
+            miniIcon.style.cursor = 'grabbing';
+            const rect = miniIcon.getBoundingClientRect();
+            miniIcon._origX = rect.left;
+            miniIcon._origY = rect.top;
+            miniIcon._startX = e.clientX;
+            miniIcon._startY = e.clientY;
+        }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!miniIcon._isDragging) return;
+        const dx = e.clientX - miniIcon._startX;
+        const dy = e.clientY - miniIcon._startY;
+        miniIcon.style.left = (miniIcon._origX + dx) + 'px';
+        miniIcon.style.top = (miniIcon._origY + dy) + 'px';
+        miniIcon.style.right = 'auto';
+        miniIcon.style.bottom = 'auto';
+    });
+
+    document.addEventListener('mouseup', (e) => {
+        if (miniIcon._isDragging) {
+            miniIcon._isDragging = false;
+            miniIcon.style.cursor = 'grab';
+            localStorage.setItem('mini_icon_pos', JSON.stringify({
+                left: miniIcon.style.left,
+                top: miniIcon.style.top
+            }));
+        }
+        miniIcon._startX = null;
+        miniIcon._startY = null;
+    });
+
+    // ===== 点击切换播放器 =====
+    miniIcon.addEventListener('click', (e) => {
+        if (miniIcon._isDragging) return;
+        const u1 = document.getElementById('player-root');
+        const u1a = document.getElementById('player-rhythm-icon');
+        if (u1 && u1a) {
+            if (u1.style.display !== 'none') {
+                u1.style.display = 'none';
+                u1a.style.display = 'none';
+            } else {
+                u1.style.display = 'flex';
+                const core = window.MusicPlayerCore;
+                if (core && core.state.isRhythmMode) {
+                    u1a.style.display = 'flex';
+                } else {
+                    u1a.style.display = 'none';
+                }
+            }
+        }
+    });
+
+    // ===== 恢复保存的位置 =====
+    const savedPos = localStorage.getItem('mini_icon_pos');
+    if (savedPos) {
+        try {
+            const pos = JSON.parse(savedPos);
+            if (pos.left) miniIcon.style.left = pos.left;
+            if (pos.top) miniIcon.style.top = pos.top;
+            miniIcon.style.right = 'auto';
+            miniIcon.style.bottom = 'auto';
+        } catch (e) {}
+    }
 
     // ===== 根据设置决定图标初始状态 =====
     const settings = window.extension_settings?.['music_player'] || {};
