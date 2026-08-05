@@ -101,7 +101,7 @@ function bindEvents() {
     const leftZone = rhythmIcon?.querySelector('.rhythm-left-zone');
     const rightZone = rhythmIcon?.querySelector('.rhythm-right-zone');
 
-    // ===== 播放器拖拽（整个面板，排除可滚动区域） =====
+    // ===== 播放器拖拽（整个面板，排除可滚动区域和纯享模式） =====
     if (root) {
         const handlePlayerDrag = (e) => {
             const target = e.target;
@@ -119,7 +119,8 @@ function bindEvents() {
             if (target.closest('.list-box') || 
                 target.closest('.player-panel') || 
                 target.closest('.history-list') || 
-                target.closest('.panel-list-btns')) {
+                target.closest('.panel-list-btns') ||
+                target.closest('#player-pure-mode')) {
                 return;
             }
 
