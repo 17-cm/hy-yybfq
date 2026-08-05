@@ -16,7 +16,7 @@ const QISHUI_BASE = 'https://api.pearapi.ai/api/qishui_music';
 /**
  * 解析汽水音乐单曲
  * @param {string} link - 汽水音乐分享链接
- * @returns {Promise<{title, artist, url, lyrics, cover, neteaseId, _originalLink}>}
+ * @returns {Promise<{title, artist, url, lyrics, cover, neteaseId, _originalLink, source}>}
  */
 async function fetchQishuiSongInfo(link) {
     try {
@@ -59,7 +59,7 @@ async function fetchQishuiSongInfo(link) {
 }
 
 /**
- * 刷新播放链接（带自动重试）
+ * 刷新播放链接（带超时和自动重试）
  * @param {string} link - 汽水音乐分享链接
  * @param {number} maxRetries - 最大重试次数
  * @returns {Promise<string|null>}
@@ -67,11 +67,26 @@ async function fetchQishuiSongInfo(link) {
 async function refreshQishuiSongUrl(link, maxRetries = 3) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-            const response = await fetch(`${QISHUI_BASE}?url=${encodeURIComponent(link)}`);
+            console.log(`🔄 汽水刷新尝试 ${attempt + 1}...`);
+            
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+            
+            const response = await fetch(`${QISHUI_BASE}?url=${encodeURIComponent(link)}`, {
+                signal: controller.signal
+            });
+            clearTimeout(timeout);
+            
+            console.log(`📡 响应状态: ${response.status}`);
+            
             if (!response.ok) continue;
             
             const data = await response.json();
-            if (data.code !== 200) continue;
+            
+            if (data.code !== 200) {
+                console.warn(`⚠️ API 返回错误: ${data.msg || '未知错误'}`);
+                continue;
+            }
             
             const url = data.data?.url || null;
             if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
@@ -79,11 +94,15 @@ async function refreshQishuiSongUrl(link, maxRetries = 3) {
                 return url;
             }
         } catch (e) {
-            console.warn(`⚠️ 汽水链接刷新失败 (尝试 ${attempt + 1}):`, e);
+            if (e.name === 'AbortError') {
+                console.warn(`⚠️ 汽水刷新超时 (尝试 ${attempt + 1})`);
+            } else {
+                console.warn(`⚠️ 汽水刷新失败 (尝试 ${attempt + 1}):`, e.message);
+            }
         }
         
         if (attempt < maxRetries - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 800));
         }
     }
     
