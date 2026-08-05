@@ -281,7 +281,7 @@ function createUI() {
     }
 
     miniIcon.style.cssText = `
-        position: fixed !important;
+        position: absolute !important;
         left: ${initLeft} !important;
         top: ${initTop} !important;
         right: ${initRight} !important;
@@ -314,9 +314,8 @@ function createUI() {
     });
 
     const appContainer = document.getElementById('app') || document.body;
+    appContainer.style.position = 'relative';
     appContainer.appendChild(miniIcon);
-
-    console.log('✅ 最小化图标已创建');
 
     let drag = { active: false, offX: 0, offY: 0 };
     let hasMoved = false;
@@ -327,8 +326,10 @@ function createUI() {
         drag.active = true;
         startX = e.clientX || e.touches[0].clientX;
         startY = e.clientY || e.touches[0].clientY;
-        drag.offX = startX - miniIcon.offsetLeft;
-        drag.offY = startY - miniIcon.offsetTop;
+        const rect = miniIcon.getBoundingClientRect();
+        const containerRect = appContainer.getBoundingClientRect();
+        drag.offX = startX - rect.left;
+        drag.offY = startY - rect.top;
         hasMoved = false;
         miniIcon.style.cursor = 'grabbing';
     };
@@ -343,8 +344,9 @@ function createUI() {
         if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
             hasMoved = true;
         }
-        const x = cx - drag.offX;
-        const y = cy - drag.offY;
+        const containerRect = appContainer.getBoundingClientRect();
+        const x = cx - drag.offX - containerRect.left;
+        const y = cy - drag.offY - containerRect.top;
         miniIcon.style.left = x + 'px';
         miniIcon.style.top = y + 'px';
         miniIcon.style.right = 'auto';
@@ -374,7 +376,6 @@ function createUI() {
                         u1.style.display = 'none';
                         u2.style.display = 'none';
                         core._forceHidden = true;
-                        console.log('🔒 播放器已隐藏');
                     } else {
                         if (core.state.isRhythmMode) {
                             u1.style.display = 'none';
@@ -384,7 +385,6 @@ function createUI() {
                             u2.style.display = 'none';
                         }
                         core._forceHidden = false;
-                        console.log('🔓 播放器已显示');
                     }
                     
                     if (typeof window.updateView === 'function') {
@@ -537,8 +537,6 @@ function updateView() {
     if (artistEl) artistEl.innerText = t ? t.artist : '功能按钮查看使用说明';
 
     updateSettingsPanel();
-
-    // ===== U3 不在此更新样式，避免位置偏移 =====
 }
 
 function updateSettingsPanel() {
@@ -710,11 +708,9 @@ function toggleRhythmMode() {
     if (core.state.isRhythmMode) {
         if (root) root.style.display = 'none';
         if (rhythmIcon) rhythmIcon.style.display = 'flex';
-        console.log('🎵 切换到律动模式');
     } else {
         if (root) root.style.display = 'flex';
         if (rhythmIcon) rhythmIcon.style.display = 'none';
-        console.log('🎵 切换到正常模式');
     }
     
     window.updateView();
