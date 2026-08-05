@@ -16,20 +16,18 @@ const QISHUI_BASE = 'https://api.pearapi.ai/api/qishui_music';
 /**
  * 解析汽水音乐单曲
  * @param {string} link - 汽水音乐分享链接
- * @returns {Promise<{title, artist, url, lyrics, cover, neteaseId}>}
+ * @returns {Promise<{title, artist, url, lyrics, cover, neteaseId, _originalLink}>}
  */
 async function fetchQishuiSongInfo(link) {
     try {
         const url = link.trim();
         if (!url) throw new Error('请输入链接');
 
-        // 请求汽水音乐接口
         const response = await fetch(`${QISHUI_BASE}?url=${encodeURIComponent(url)}`);
         if (!response.ok) throw new Error(`请求失败: ${response.status}`);
 
         const data = await response.json();
 
-        // 检查返回状态
         if (data.code !== 200) {
             throw new Error(data.msg || '解析失败');
         }
@@ -39,7 +37,6 @@ async function fetchQishuiSongInfo(link) {
             throw new Error('未找到歌曲信息');
         }
 
-        // 提取歌曲ID（从链接中提取）
         let songId = null;
         const idMatch = url.match(/[?&]id=(\d+)/) || url.match(/\/song\/(\d+)/);
         if (idMatch) songId = idMatch[1];
@@ -52,7 +49,8 @@ async function fetchQishuiSongInfo(link) {
             cover: song.cover || '',
             duration: '0:00',
             neteaseId: songId,
-            source: 'qishui'
+            source: 'qishui',
+            _originalLink: url
         };
     } catch (error) {
         console.error('汽水音乐解析失败:', error);
@@ -61,21 +59,36 @@ async function fetchQishuiSongInfo(link) {
 }
 
 /**
- * 刷新播放链接
+ * 刷新播放链接（带自动重试）
  * @param {string} link - 汽水音乐分享链接
+ * @param {number} maxRetries - 最大重试次数
  * @returns {Promise<string|null>}
  */
-async function refreshQishuiSongUrl(link) {
-    try {
-        const response = await fetch(`${QISHUI_BASE}?url=${encodeURIComponent(link)}`);
-        if (!response.ok) return null;
-        const data = await response.json();
-        if (data.code !== 200) return null;
-        return data.data?.url || null;
-    } catch (e) {
-        console.error('刷新汽水链接失败:', e);
-        return null;
+async function refreshQishuiSongUrl(link, maxRetries = 3) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+            const response = await fetch(`${QISHUI_BASE}?url=${encodeURIComponent(link)}`);
+            if (!response.ok) continue;
+            
+            const data = await response.json();
+            if (data.code !== 200) continue;
+            
+            const url = data.data?.url || null;
+            if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+                console.log(`✅ 汽水链接刷新成功 (尝试 ${attempt + 1})`);
+                return url;
+            }
+        } catch (e) {
+            console.warn(`⚠️ 汽水链接刷新失败 (尝试 ${attempt + 1}):`, e);
+        }
+        
+        if (attempt < maxRetries - 1) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
     }
+    
+    console.error('❌ 汽水链接刷新失败，已达最大重试次数');
+    return null;
 }
 
 /**
