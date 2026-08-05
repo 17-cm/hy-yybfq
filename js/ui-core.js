@@ -206,7 +206,7 @@ function createUI() {
     `;
     document.body.appendChild(root);
 
-    // ===== U3：最小化悬浮图标（黑边白底黑音符） =====
+    // ===== U3：最小化悬浮图标（挂载到聊天容器，跟随滚动） =====
     const miniIcon = document.createElement('div');
     miniIcon.id = 'player-mini-icon';
     miniIcon.textContent = '♫';
@@ -232,6 +232,11 @@ function createUI() {
         transition: transform 0.15s ease !important;
     `;
 
+    // 挂载到聊天内容容器，跟随滚动
+    const chatContainer = document.querySelector('#chat-messages') || document.getElementById('app') || document.body;
+    chatContainer.appendChild(miniIcon);
+    console.log('✅ 最小化图标已挂载到聊天容器');
+
     // 悬停放大
     miniIcon.addEventListener('mouseenter', () => {
         miniIcon.style.transform = 'scale(1.08)';
@@ -239,12 +244,6 @@ function createUI() {
     miniIcon.addEventListener('mouseleave', () => {
         miniIcon.style.transform = 'scale(1)';
     });
-
-    // 挂载到酒馆主容器
-    const appContainer = document.getElementById('app') || document.body;
-    appContainer.appendChild(miniIcon);
-
-    console.log('✅ 最小化图标已创建（黑边白底黑音符 + 拖拽修复）');
 
     // ===== U3 交互：点击 + 拖拽（修复版） =====
     let dragStartX = 0, dragStartY = 0;
