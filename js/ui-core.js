@@ -206,7 +206,7 @@ function createUI() {
     `;
     document.body.appendChild(root);
 
-    // ===== U3：最小化悬浮图标（黑边白底黑音符） =====
+    // ===== U3：最小化悬浮图标（黑边白底黑音符 + 点击缩放） =====
     const miniIcon = document.createElement('div');
     miniIcon.id = 'player-mini-icon';
     miniIcon.textContent = '♫';
@@ -229,46 +229,52 @@ function createUI() {
         box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
         cursor: grab !important;
         user-select: none !important;
-        transition: transform 0.2s ease !important;
+        transition: transform 0.15s ease !important;
     `;
-
-    // 悬停效果
-    miniIcon.addEventListener('mouseenter', () => {
-        miniIcon.style.transform = 'scale(1.05)';
-    });
-    miniIcon.addEventListener('mouseleave', () => {
-        miniIcon.style.transform = 'scale(1)';
-    });
 
     // 挂载到酒馆主容器
     const appContainer = document.getElementById('app') || document.body;
     appContainer.appendChild(miniIcon);
 
-    console.log('✅ 最小化图标已创建（黑边白底黑音符）');
+    console.log('✅ 最小化图标已创建（黑边白底黑音符 + 点击缩放）');
 
-    // ===== U3 交互：拖拽 + 点击区分（修复全局触发问题） =====
+    // ===== U3 交互：拖拽 + 点击区分 + 点击缩放 =====
     let dragStartX = 0, dragStartY = 0;
     let isDragging = false;
-    let isClickFromIcon = false;
+
+    // 悬停放大
+    miniIcon.addEventListener('mouseenter', () => {
+        if (!isDragging) {
+            miniIcon.style.transform = 'scale(1.08)';
+        }
+    });
+    miniIcon.addEventListener('mouseleave', () => {
+        if (!isDragging) {
+            miniIcon.style.transform = 'scale(1)';
+        }
+    });
 
     miniIcon.addEventListener('mousedown', (e) => {
         e.preventDefault();
-        isClickFromIcon = true;
+        e.stopPropagation();
         dragStartX = e.clientX;
         dragStartY = e.clientY;
         isDragging = false;
         miniIcon.style.cursor = 'grabbing';
+        // 按下时缩小（点击反馈）
+        miniIcon.style.transform = 'scale(0.85)';
     });
 
-    document.addEventListener('mousemove', (e) => {
-        if (!isClickFromIcon) return;
-        if (!miniIcon._isDragging) return;
+    miniIcon.addEventListener('mousemove', (e) => {
         e.preventDefault();
         const dx = e.clientX - dragStartX;
         const dy = e.clientY - dragStartY;
-        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-            miniIcon._isDragging = true;
+        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
             isDragging = true;
+            miniIcon.style.cursor = 'grabbing';
+            // 拖拽时恢复大小
+            miniIcon.style.transform = 'scale(1)';
+            // 移动图标
             const rect = miniIcon.getBoundingClientRect();
             const parentRect = miniIcon.parentElement.getBoundingClientRect();
             miniIcon.style.left = (rect.left - parentRect.left + dx) + 'px';
@@ -280,57 +286,60 @@ function createUI() {
         }
     });
 
-    document.addEventListener('mouseup', (e) => {
-        // 如果点击不是来自 U3，直接忽略
-        if (!isClickFromIcon) {
-            isClickFromIcon = false;
-            return;
-        }
-        isClickFromIcon = false;
+    miniIcon.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        miniIcon.style.cursor = 'grab';
 
-        if (miniIcon._isDragging) {
-            miniIcon._isDragging = false;
-            miniIcon.style.cursor = 'grab';
-            // 保存位置
+        // 恢复大小（悬停效果由 mouseenter 恢复）
+        miniIcon.style.transform = 'scale(1)';
+
+        // 如果发生了拖拽，保存位置并返回
+        if (isDragging) {
             localStorage.setItem('mini_icon_pos', JSON.stringify({
                 left: miniIcon.style.left,
                 top: miniIcon.style.top
             }));
+            isDragging = false;
             return;
         }
 
-        // 如果没拖拽，执行点击逻辑
-        if (!isDragging) {
-            const u1 = document.getElementById('player-root');
-            const u2 = document.getElementById('player-rhythm-icon');
-            if (u1 && u2) {
-                const core = window.MusicPlayerCore;
-                const isRhythmMode = core && core.state.isRhythmMode;
-                const isHidden = u1.style.display === 'none' && u2.style.display === 'none';
+        // 如果没有拖拽，执行点击逻辑
+        const u1 = document.getElementById('player-root');
+        const u2 = document.getElementById('player-rhythm-icon');
+        if (u1 && u2) {
+            const core = window.MusicPlayerCore;
+            const isRhythmMode = core && core.state.isRhythmMode;
+            const isHidden = u1.style.display === 'none' && u2.style.display === 'none';
 
-                if (isHidden) {
-                    const targetMode = miniIcon._lastVisibleMode !== undefined ? miniIcon._lastVisibleMode : isRhythmMode;
-                    if (targetMode) {
-                        u1.style.display = 'none';
-                        u2.style.display = 'flex';
-                    } else {
-                        u1.style.display = 'flex';
-                        u2.style.display = 'none';
-                    }
-                } else {
-                    if (u2.style.display === 'flex') {
-                        miniIcon._lastVisibleMode = true;
-                    } else {
-                        miniIcon._lastVisibleMode = false;
-                    }
+            if (isHidden) {
+                const targetMode = miniIcon._lastVisibleMode !== undefined ? miniIcon._lastVisibleMode : isRhythmMode;
+                if (targetMode) {
                     u1.style.display = 'none';
+                    u2.style.display = 'flex';
+                } else {
+                    u1.style.display = 'flex';
                     u2.style.display = 'none';
                 }
+            } else {
+                if (u2.style.display === 'flex') {
+                    miniIcon._lastVisibleMode = true;
+                } else {
+                    miniIcon._lastVisibleMode = false;
+                }
+                u1.style.display = 'none';
+                u2.style.display = 'none';
             }
         }
+    });
 
-        isDragging = false;
-        miniIcon.style.cursor = 'grab';
+    // 防止鼠标离开图标时拖拽中断
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            miniIcon.style.cursor = 'grab';
+            miniIcon.style.transform = 'scale(1)';
+        }
     });
 
     // ===== 恢复保存的位置 =====
