@@ -246,90 +246,89 @@ function createUI() {
 
     console.log('✅ 最小化图标已创建（黑边白底黑音符）');
 
-    // ===== U3 交互：拖拽 + 点击区分 =====
-    let dragStartX = 0, dragStartY = 0;
-    let isDragging = false;
+    // ===== U3 交互：拖拽 + 点击切换 =====
+    let drag = { active: false, offX: 0, offY: 0 };
+    let hasMoved = false;
+    let startX = 0, startY = 0;
 
-    miniIcon.addEventListener('mousedown', (e) => {
+    const handleDragStart = (e) => {
         e.preventDefault();
-        dragStartX = e.clientX;
-        dragStartY = e.clientY;
-        isDragging = false;
+        drag.active = true;
+        startX = e.clientX || e.touches[0].clientX;
+        startY = e.clientY || e.touches[0].clientY;
+        drag.offX = startX - miniIcon.offsetLeft;
+        drag.offY = startY - miniIcon.offsetTop;
+        hasMoved = false;
         miniIcon.style.cursor = 'grabbing';
-    });
+    };
 
-    miniIcon.addEventListener('mousemove', (e) => {
-        e.preventDefault();
-        const dx = e.clientX - dragStartX;
-        const dy = e.clientY - dragStartY;
-        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-            isDragging = true;
-            miniIcon.style.cursor = 'grabbing';
-            const rect = miniIcon.getBoundingClientRect();
-            const parentRect = miniIcon.parentElement.getBoundingClientRect();
-            let newLeft = (rect.left - parentRect.left + dx);
-            let newTop = (rect.top - parentRect.top + dy);
-            // 边界限制
-            const maxLeft = parentRect.width - miniIcon.offsetWidth;
-            const maxTop = parentRect.height - miniIcon.offsetHeight;
-            newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-            newTop = Math.max(0, Math.min(newTop, maxTop));
-            miniIcon.style.left = newLeft + 'px';
-            miniIcon.style.top = newTop + 'px';
-            miniIcon.style.right = 'auto';
-            miniIcon.style.bottom = 'auto';
-            dragStartX = e.clientX;
-            dragStartY = e.clientY;
+    const handleDragMove = (ev) => {
+        if (!drag.active) return;
+        ev.preventDefault();
+        const cx = ev.clientX || ev.touches[0].clientX;
+        const cy = ev.clientY || ev.touches[0].clientY;
+        const dx = cx - startX;
+        const dy = cy - startY;
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+            hasMoved = true;
         }
-    });
+        const x = cx - drag.offX;
+        const y = cy - drag.offY;
+        miniIcon.style.left = x + 'px';
+        miniIcon.style.top = y + 'px';
+        miniIcon.style.right = 'auto';
+        miniIcon.style.bottom = 'auto';
+    };
 
-    miniIcon.addEventListener('mouseup', (e) => {
-        e.preventDefault();
-        if (isDragging) {
+    const handleDragEnd = () => {
+        if (drag.active) {
+            drag.active = false;
             miniIcon.style.cursor = 'grab';
-            localStorage.setItem('mini_icon_pos', JSON.stringify({
-                left: miniIcon.style.left,
-                top: miniIcon.style.top
-            }));
-            isDragging = false;
-            dragStartX = 0;
-            dragStartY = 0;
-            return;
-        }
-
-        // 点击逻辑
-        const u1 = document.getElementById('player-root');
-        const u2 = document.getElementById('player-rhythm-icon');
-        if (u1 && u2) {
-            const core = window.MusicPlayerCore;
-            const isRhythmMode = core && core.state.isRhythmMode;
-            const isHidden = u1.style.display === 'none' && u2.style.display === 'none';
-
-            if (isHidden) {
-                const targetMode = miniIcon._lastVisibleMode !== undefined ? miniIcon._lastVisibleMode : isRhythmMode;
-                if (targetMode) {
-                    u1.style.display = 'none';
-                    u2.style.display = 'flex';
-                } else {
-                    u1.style.display = 'flex';
-                    u2.style.display = 'none';
-                }
+            if (hasMoved) {
+                localStorage.setItem('mini_icon_pos', JSON.stringify({
+                    left: miniIcon.style.left,
+                    top: miniIcon.style.top
+                }));
             } else {
-                if (u2.style.display === 'flex') {
-                    miniIcon._lastVisibleMode = true;
-                } else {
-                    miniIcon._lastVisibleMode = false;
+                // 点击切换逻辑
+                const u1 = document.getElementById('player-root');
+                const u2 = document.getElementById('player-rhythm-icon');
+                if (u1 && u2) {
+                    const core = window.MusicPlayerCore;
+                    const isRhythmMode = core && core.state.isRhythmMode;
+                    const isHidden = u1.style.display === 'none' && u2.style.display === 'none';
+
+                    if (isHidden) {
+                        const targetMode = miniIcon._lastVisibleMode !== undefined ? miniIcon._lastVisibleMode : isRhythmMode;
+                        if (targetMode) {
+                            u1.style.display = 'none';
+                            u2.style.display = 'flex';
+                        } else {
+                            u1.style.display = 'flex';
+                            u2.style.display = 'none';
+                        }
+                    } else {
+                        if (u2.style.display === 'flex') {
+                            miniIcon._lastVisibleMode = true;
+                        } else {
+                            miniIcon._lastVisibleMode = false;
+                        }
+                        u1.style.display = 'none';
+                        u2.style.display = 'none';
+                    }
                 }
-                u1.style.display = 'none';
-                u2.style.display = 'none';
             }
         }
+    };
 
-        miniIcon.style.cursor = 'grab';
-        isDragging = false;
-        dragStartX = 0;
-        dragStartY = 0;
-    });
+    miniIcon.addEventListener('mousedown', handleDragStart);
+    miniIcon.addEventListener('touchstart', handleDragStart);
+
+    document.addEventListener('mousemove', handleDragMove);
+    document.addEventListener('touchmove', handleDragMove);
+
+    document.addEventListener('mouseup', handleDragEnd);
+    document.addEventListener('touchend', handleDragEnd);
 
     // ===== 恢复保存的位置 =====
     const savedPos = localStorage.getItem('mini_icon_pos');
