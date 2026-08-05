@@ -262,13 +262,20 @@ function createUI() {
         e.preventDefault();
         const dx = e.clientX - dragStartX;
         const dy = e.clientY - dragStartY;
-        if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
             isDragging = true;
             miniIcon.style.cursor = 'grabbing';
             const rect = miniIcon.getBoundingClientRect();
             const parentRect = miniIcon.parentElement.getBoundingClientRect();
-            miniIcon.style.left = (rect.left - parentRect.left + dx) + 'px';
-            miniIcon.style.top = (rect.top - parentRect.top + dy) + 'px';
+            let newLeft = (rect.left - parentRect.left + dx);
+            let newTop = (rect.top - parentRect.top + dy);
+            // 边界限制
+            const maxLeft = parentRect.width - miniIcon.offsetWidth;
+            const maxTop = parentRect.height - miniIcon.offsetHeight;
+            newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+            newTop = Math.max(0, Math.min(newTop, maxTop));
+            miniIcon.style.left = newLeft + 'px';
+            miniIcon.style.top = newTop + 'px';
             miniIcon.style.right = 'auto';
             miniIcon.style.bottom = 'auto';
             dragStartX = e.clientX;
