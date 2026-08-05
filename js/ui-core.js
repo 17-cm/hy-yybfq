@@ -212,7 +212,7 @@ function createUI() {
     miniIcon.textContent = '♫';
     miniIcon.style.cssText = `
         position: absolute !important;
-        bottom: 40px !important;
+        bottom: 35% !important;
         right: 20px !important;
         width: 40px !important;
         height: 40px !important;
@@ -246,29 +246,25 @@ function createUI() {
 
     console.log('✅ 最小化图标已创建（黑边白底黑音符）');
 
-    // ===== U3 交互：拖拽 + 点击区分（修复拖拽） =====
+    // ===== U3 交互：拖拽 + 点击区分 =====
     let dragStartX = 0, dragStartY = 0;
     let isDragging = false;
-    let isClickFromIcon = false;
 
     miniIcon.addEventListener('mousedown', (e) => {
         e.preventDefault();
-        isClickFromIcon = true;
         dragStartX = e.clientX;
         dragStartY = e.clientY;
         isDragging = false;
-        miniIcon._isDragging = false;
         miniIcon.style.cursor = 'grabbing';
     });
 
-    document.addEventListener('mousemove', (e) => {
-        if (!isClickFromIcon) return;
+    miniIcon.addEventListener('mousemove', (e) => {
         e.preventDefault();
         const dx = e.clientX - dragStartX;
         const dy = e.clientY - dragStartY;
         if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-            miniIcon._isDragging = true;
             isDragging = true;
+            miniIcon.style.cursor = 'grabbing';
             const rect = miniIcon.getBoundingClientRect();
             const parentRect = miniIcon.parentElement.getBoundingClientRect();
             miniIcon.style.left = (rect.left - parentRect.left + dx) + 'px';
@@ -280,20 +276,17 @@ function createUI() {
         }
     });
 
-    document.addEventListener('mouseup', (e) => {
-        if (!isClickFromIcon) {
-            isClickFromIcon = false;
-            return;
-        }
-        isClickFromIcon = false;
-
-        if (isDragging || miniIcon._isDragging) {
-            miniIcon._isDragging = false;
+    miniIcon.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        if (isDragging) {
             miniIcon.style.cursor = 'grab';
             localStorage.setItem('mini_icon_pos', JSON.stringify({
                 left: miniIcon.style.left,
                 top: miniIcon.style.top
             }));
+            isDragging = false;
+            dragStartX = 0;
+            dragStartY = 0;
             return;
         }
 
@@ -325,8 +318,10 @@ function createUI() {
             }
         }
 
-        isDragging = false;
         miniIcon.style.cursor = 'grab';
+        isDragging = false;
+        dragStartX = 0;
+        dragStartY = 0;
     });
 
     // ===== 恢复保存的位置 =====
