@@ -44,17 +44,8 @@ function togglePureMode() {
     core.saveData();
 }
 
-function toggleRhythmMode() {
-    const core = window.MusicPlayerCore;
-    if (!core) return;
-
-    core.state.isRhythmMode = !core.state.isRhythmMode;
-    window.updateView();
-    core.saveData();
-}
-
 // ============================================================
-// 显示/隐藏 UI（强制检查隐藏状态）
+// 显示/隐藏 UI
 // ============================================================
 
 function showUI() {
@@ -63,9 +54,6 @@ function showUI() {
 
     const core = window.MusicPlayerCore;
     if (!core) return;
-
-    // ===== 清除强制隐藏标记 =====
-    core._forceHidden = false;
 
     const root = document.getElementById('player-root');
     const rhythmIcon = document.getElementById('player-rhythm-icon');
@@ -89,7 +77,6 @@ function hideUI() {
     const rhythmIcon = document.getElementById('player-rhythm-icon');
     const core = window.MusicPlayerCore;
     
-    // ===== 设置强制隐藏标记 =====
     if (core) core._forceHidden = true;
     
     if (root) root.style.display = 'none';
@@ -109,11 +96,10 @@ function bindEvents() {
 
     const root = document.getElementById('player-root');
     const rhythmIcon = document.getElementById('player-rhythm-icon');
-    const island = document.getElementById('player-island');
     const leftZone = rhythmIcon?.querySelector('.rhythm-left-zone');
     const rightZone = rhythmIcon?.querySelector('.rhythm-right-zone');
 
-    // ===== 播放器拖拽（整个面板） =====
+    // ===== 播放器拖拽 =====
     if (root) {
         const handlePlayerDrag = (e) => {
             const target = e.target;
@@ -214,6 +200,7 @@ function bindEvents() {
         leftZone.addEventListener('touchstart', handleRhythmDrag);
     }
 
+    // ===== U2 右键返回 =====
     if (rightZone) {
         let lastClickTime = 0;
         const handleRightClick = (e) => {
@@ -221,9 +208,10 @@ function bindEvents() {
             e.stopPropagation();
             const now = Date.now();
             if (now - lastClickTime < 300) {
-                core.state.isRhythmMode = false;
-                window.updateView();
-                core.saveData();
+                // 双击返回 → 调用 core 里的退出函数
+                if (typeof window.exitRhythmMode === 'function') {
+                    window.exitRhythmMode();
+                }
                 lastClickTime = 0;
             } else {
                 lastClickTime = now;
@@ -237,15 +225,17 @@ function bindEvents() {
         });
     }
 
+    // ===== 辅助：click 绑定 =====
     const click = (id, fn) => {
         const el = document.getElementById(id);
         if (el) el.onclick = (e) => { e.stopPropagation(); fn(e); };
     };
 
+    // ===== 按钮事件绑定（只负责绑定，控制逻辑在 core 里） =====
     click('btn-rhythm', () => {
-        core.state.isRhythmMode = true;
-        window.updateView();
-        core.saveData();
+        if (typeof window.toggleRhythmMode === 'function') {
+            window.toggleRhythmMode();
+        }
     });
 
     click('btn-play', () => core.toggle());
@@ -296,6 +286,7 @@ function bindEvents() {
         });
     });
 
+    // ===== 颜色设置 =====
     const bgColorChange = (id, key) => {
         const el = document.getElementById(id);
         if (el) {
@@ -329,6 +320,7 @@ function bindEvents() {
         };
     });
 
+    // ===== 开关和滑块 =====
     const glassToggle = document.getElementById('sw-glass');
     if (glassToggle) {
         glassToggle.onchange = (e) => {
@@ -420,7 +412,6 @@ function bindEvents() {
 
 window.togglePanel = togglePanel;
 window.togglePureMode = togglePureMode;
-window.toggleRhythmMode = toggleRhythmMode;
 window.showUI = showUI;
 window.hideUI = hideUI;
 window.bindEvents = bindEvents;
