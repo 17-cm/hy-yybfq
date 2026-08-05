@@ -21,13 +21,13 @@ function loadCSS() {
 // ============================================================
 
 function createUI() {
-    // 状态提示
+    // ===== 状态提示 =====
     const statusEl = document.createElement('div');
     statusEl.id = 'player-status';
     statusEl.className = 'player-status';
     document.body.appendChild(statusEl);
 
-    // 律动图标
+    // ===== U1-a：律动图标 =====
     const rhythmIcon = document.createElement('div');
     rhythmIcon.id = 'player-rhythm-icon';
     rhythmIcon.className = 'player-rhythm-icon';
@@ -63,7 +63,7 @@ function createUI() {
     `;
     document.body.appendChild(rhythmIcon);
 
-    // 播放器主体
+    // ===== U1：播放器主体 =====
     const root = document.createElement('div');
     root.id = 'player-root';
     root.innerHTML = `
@@ -206,33 +206,33 @@ function createUI() {
     `;
     document.body.appendChild(root);
 
-    // ===== 新增：最小化悬浮图标 =====
+    // ===== U2：最小化悬浮图标（独立于播放器） =====
     const miniIcon = document.createElement('div');
     miniIcon.id = 'player-mini-icon';
-    miniIcon.innerHTML = '🎵';
+    miniIcon.textContent = '🎵';
     miniIcon.style.cssText = `
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
-        background: rgba(20, 20, 20, 0.85);
-        color: #ffffff;
-        font-size: 28px;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        z-index: 9999;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        user-select: none;
-        backdrop-filter: blur(4px);
-        border: 1px solid rgba(255,255,255,0.1);
-        transition: transform 0.2s ease;
+        position: fixed !important;
+        bottom: 80px !important;
+        right: 20px !important;
+        width: 40px !important;
+        height: 40px !important;
+        border-radius: 50% !important;
+        background: rgba(20,20,20,0.85) !important;
+        color: #ffffff !important;
+        font-size: 20px !important;
+        display: none !important;
+        align-items: center !important;
+        justify-content: center !important;
+        z-index: 9999999 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        backdrop-filter: blur(4px) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        cursor: pointer !important;
+        user-select: none !important;
+        transition: transform 0.2s ease !important;
     `;
     
-    // 悬停缩放效果
+    // 悬停效果
     miniIcon.addEventListener('mouseenter', () => {
         miniIcon.style.transform = 'scale(1.05)';
     });
@@ -240,7 +240,23 @@ function createUI() {
         miniIcon.style.transform = 'scale(1)';
     });
     
+    // 点击切换播放器显示
+    miniIcon.addEventListener('click', () => {
+        const root = document.getElementById('player-root');
+        if (root) {
+            root.style.display = root.style.display === 'none' ? 'flex' : 'none';
+        }
+    });
+    
     document.body.appendChild(miniIcon);
+
+    // ===== 根据设置决定图标初始状态 =====
+    const settings = window.extension_settings?.['music_player'] || {};
+    if (settings.miniIconVisible !== false) {
+        miniIcon.style.display = 'flex';
+    } else {
+        miniIcon.style.display = 'none';
+    }
 }
 
 // ============================================================
