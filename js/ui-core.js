@@ -529,17 +529,20 @@ function updateView() {
 
     updateSettingsPanel();
 
-    // ===== 最小化图标直接跟随灵动岛 =====
+    // ===== 最小化图标跟随灵动岛（颜色用 cfg.rgbColor） =====
     const miniIcon = document.getElementById('player-mini-icon');
     if (miniIcon && island) {
         // 复制灵动岛的类名（继承呼吸/幻彩动画）
         miniIcon.className = island.className;
         
-        // 直接读取灵动岛的计算样式
-        const islandStyle = window.getComputedStyle(island);
-        const bgColor = islandStyle.backgroundColor || cfg.borderColor;
-        miniIcon.style.borderColor = bgColor;
-        miniIcon.style.color = bgColor;
+        // 颜色：幻彩/单色模式使用 rgbColor，关闭模式使用 borderColor
+        const mode = core.state.rgbMode;
+        let color = cfg.borderColor;
+        if (mode === 1 || mode === 2) {
+            color = cfg.rgbColor;
+        }
+        miniIcon.style.borderColor = color;
+        miniIcon.style.color = color;
         miniIcon.style.background = '#ffffff';
     }
 }
