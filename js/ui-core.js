@@ -27,7 +27,7 @@ function createUI() {
     statusEl.className = 'player-status';
     document.body.appendChild(statusEl);
 
-    // ===== U1-a：律动图标 =====
+    // ===== U2：律动图标 =====
     const rhythmIcon = document.createElement('div');
     rhythmIcon.id = 'player-rhythm-icon';
     rhythmIcon.className = 'player-rhythm-icon';
@@ -206,10 +206,10 @@ function createUI() {
     `;
     document.body.appendChild(root);
 
-    // ===== U2：最小化悬浮图标（相对于酒馆容器定位） =====
+    // ===== U3：最小化悬浮图标（黑边白底黑音符） =====
     const miniIcon = document.createElement('div');
     miniIcon.id = 'player-mini-icon';
-    miniIcon.textContent = '🎵';
+    miniIcon.textContent = '♫';
     miniIcon.style.cssText = `
         position: absolute !important;
         bottom: 20px !important;
@@ -217,41 +217,72 @@ function createUI() {
         width: 40px !important;
         height: 40px !important;
         border-radius: 50% !important;
-        background: rgba(20,20,20,0.85) !important;
-        color: #ffffff !important;
-        font-size: 20px !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 22px !important;
+        font-weight: bold !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
         z-index: 9999 !important;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        border: 2px solid #000000 !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
         cursor: pointer !important;
         user-select: none !important;
+        transition: transform 0.2s ease !important;
     `;
+
+    // 悬停效果
+    miniIcon.addEventListener('mouseenter', () => {
+        miniIcon.style.transform = 'scale(1.05)';
+    });
+    miniIcon.addEventListener('mouseleave', () => {
+        miniIcon.style.transform = 'scale(1)';
+    });
 
     // 挂载到酒馆主容器
     const appContainer = document.getElementById('app') || document.body;
     appContainer.appendChild(miniIcon);
 
-    console.log('✅ 最小化图标已创建（相对于酒馆容器定位）');
+    console.log('✅ 最小化图标已创建（黑边白底黑音符）');
 
-    // ===== 点击切换播放器 =====
+    // ===== U3 点击：切换显示状态，并记住最后一次显示的是谁 =====
     miniIcon.addEventListener('click', () => {
         const u1 = document.getElementById('player-root');
-        const u1a = document.getElementById('player-rhythm-icon');
-        if (u1 && u1a) {
-            if (u1.style.display !== 'none') {
+        const u2 = document.getElementById('player-rhythm-icon');
+        if (!u1 || !u2) return;
+
+        // 获取核心状态，判断当前模式
+        const core = window.MusicPlayerCore;
+        const isRhythmMode = core && core.state.isRhythmMode;
+
+        // 判断当前是否处于“隐藏”状态（U1 和 U2 都隐藏）
+        const isHidden = u1.style.display === 'none' && u2.style.display === 'none';
+
+        if (isHidden) {
+            // ===== 恢复显示：根据记忆显示对应的模式 =====
+            // 如果记忆丢失或无效，则根据当前模式决定
+            const targetMode = miniIcon._lastVisibleMode !== undefined ? miniIcon._lastVisibleMode : isRhythmMode;
+            
+            if (targetMode) {
+                // 显示 U2（律动模式）
                 u1.style.display = 'none';
-                u1a.style.display = 'none';
+                u2.style.display = 'flex';
             } else {
+                // 显示 U1（播放器主体）
                 u1.style.display = 'flex';
-                const core = window.MusicPlayerCore;
-                if (core && core.state.isRhythmMode) {
-                    u1a.style.display = 'flex';
-                } else {
-                    u1a.style.display = 'none';
-                }
+                u2.style.display = 'none';
             }
+        } else {
+            // ===== 全部隐藏，并记录当前显示的是谁 =====
+            // 记录当前显示的模式
+            if (u2.style.display === 'flex') {
+                miniIcon._lastVisibleMode = true;  // true 代表 U2
+            } else {
+                miniIcon._lastVisibleMode = false; // false 代表 U1
+            }
+            u1.style.display = 'none';
+            u2.style.display = 'none';
         }
     });
 
