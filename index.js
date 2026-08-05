@@ -30,8 +30,8 @@ async function loadAllModules() {
     const basePath = `/scripts/extensions/third-party/${EXTENSION_FOLDER}/js/`;
     try {
         await loadScript(basePath + 'utils.js');
-        await loadScript(basePath + 'api.js');
-        await loadScript(basePath + 'api-qishui.js');
+        await loadScript(basePath + 'api/wyy.js');
+        await loadScript(basePath + 'api/qs.js');
         await loadScript(basePath + 'core.js');
         await loadScript(basePath + 'ui-core.js');
         await loadScript(basePath + 'ui-helpers.js');
