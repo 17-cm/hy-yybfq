@@ -411,13 +411,12 @@ function updateView() {
     const core = window.MusicPlayerCore;
     if (!core) return;
 
-    // ===== 如果播放器被隐藏，不执行任何更新 =====
+    // ===== 强制检查：如果播放器被隐藏，直接返回 =====
     const settings = window.extension_settings?.['music_player'] || {};
     if (settings.playerHidden) {
         return;
     }
 
-    // 原有的隐藏逻辑（保留兼容）
     if (window.extension_settings?.['music_player']?.playerHidden) {
         const root = document.getElementById('player-root');
         const rhythmIcon = document.getElementById('player-rhythm-icon');
@@ -536,13 +535,18 @@ function updateView() {
 
     updateSettingsPanel();
 
-    // ===== 最小化图标跟随边框颜色 =====
+    // ===== 最小化图标跟随灵动岛 =====
     const miniIcon = document.getElementById('player-mini-icon');
-    if (miniIcon) {
-        miniIcon.style.borderColor = cfg.borderColor;
-        miniIcon.style.color = cfg.borderColor;
+    if (miniIcon && island) {
+        miniIcon.className = island.className;
+        const mode = core.state.rgbMode;
+        let color = cfg.borderColor;
+        if (mode === 1 || mode === 2) {
+            color = cfg.rgbColor;
+        }
+        miniIcon.style.borderColor = color;
+        miniIcon.style.color = color;
         miniIcon.style.background = '#ffffff';
-        miniIcon.className = '';
     }
 }
 
