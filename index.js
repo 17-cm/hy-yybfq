@@ -93,18 +93,80 @@ function initPlayer() {
     if (window.MusicPlayerCore && typeof window.MusicPlayerCore.init === 'function') {
         window.MusicPlayerCore.init();
     }
-    setTimeout(() => {
-        const settings = getExtensionSettings();
-        const icon = document.getElementById('player-mini-icon');
+
+    // ===== 创建最小化悬浮图标 =====
+    const oldIcon = document.getElementById('player-mini-icon');
+    if (oldIcon) oldIcon.remove();
+
+    const miniIcon = document.createElement('div');
+    miniIcon.id = 'player-mini-icon';
+    miniIcon.textContent = '🎵';
+    miniIcon.style.cssText = `
+        position: fixed !important;
+        bottom: 80px !important;
+        right: 20px !important;
+        width: 56px !important;
+        height: 56px !important;
+        border-radius: 50% !important;
+        background: rgba(20, 20, 20, 0.85) !important;
+        color: #ffffff !important;
+        font-size: 28px !important;
+        display: none !important;
+        align-items: center !important;
+        justify-content: center !important;
+        z-index: 9999999 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        backdrop-filter: blur(4px) !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        cursor: pointer !important;
+        user-select: none !important;
+        transition: transform 0.2s ease !important;
+    `;
+
+    // 悬停缩放效果
+    miniIcon.addEventListener('mouseenter', () => {
+        miniIcon.style.transform = 'scale(1.05)';
+    });
+    miniIcon.addEventListener('mouseleave', () => {
+        miniIcon.style.transform = 'scale(1)';
+    });
+
+    // 点击图标切换播放器显示
+    miniIcon.addEventListener('click', () => {
         const root = document.getElementById('player-root');
-        if (settings.miniIconVisible) {
-            if (icon) icon.style.display = 'flex';
-            if (root) root.style.display = 'flex';
+        if (root) {
+            const isHidden = root.style.display === 'none';
+            root.style.display = isHidden ? 'flex' : 'none';
+            // 保存状态
+            localStorage.setItem('player_visible', isHidden ? 'true' : 'false');
+        }
+    });
+
+    document.body.appendChild(miniIcon);
+
+    // 根据设置决定是否显示图标
+    const settings = getExtensionSettings();
+    const iconVisible = settings.miniIconVisible !== false;
+    miniIcon.style.display = iconVisible ? 'flex' : 'none';
+
+    // 恢复播放器显示状态
+    setTimeout(() => {
+        const root = document.getElementById('player-root');
+        if (root) {
+            const saved = localStorage.getItem('player_visible');
+            if (saved === 'false') {
+                root.style.display = 'none';
+            } else {
+                root.style.display = 'flex';
+            }
+        }
+        if (iconVisible) {
+            miniIcon.style.display = 'flex';
         } else {
-            if (icon) icon.style.display = 'none';
-            if (root) root.style.display = 'none';
+            miniIcon.style.display = 'none';
         }
     }, 300);
+
     bindExtensionEvents();
     console.log('✅ 音乐播放器扩展初始化完成');
 }
@@ -128,21 +190,48 @@ function createExtensionPanel() {
             </div>
             <div class="inline-drawer-content" style="display: none;">
 
-                <!-- 显示悬浮图标 -->
-                <div style="margin-bottom: 10px;">
-                    <label style="display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; color: #000000;">
-                        <input type="checkbox" id="mini-icon-toggle" ${settings.miniIconVisible !== false ? 'checked' : ''}>
-                        <span>显示悬浮图标</span>
-                    </label>
-                </div>
+                <!-- 最小化控制（全宽按钮） -->
+                <button type="button" id="mini-icon-toggle-btn" style="
+                    width: 100%;
+                    padding: 8px 0;
+                    font-size: 13px;
+                    background: rgba(0,0,0,0.06);
+                    border-radius: 6px;
+                    border: 1px solid #cccccc;
+                    cursor: pointer;
+                    color: #000000;
+                    margin-bottom: 10px;
+                ">
+                    ${settings.miniIconVisible !== false ? '✅ 最小化图标已显示' : '❌ 最小化图标已隐藏'}
+                </button>
 
                 <!-- 通道检测 -->
-                <button type="button" id="test-channels-btn" style="width: 100%; padding: 8px 0; font-size: 13px; background: rgba(0,0,0,0.06); border-radius: 6px; border: 1px solid #cccccc; cursor: pointer; color: #000000; margin-bottom: 10px;">
+                <button type="button" id="test-channels-btn" style="
+                    width: 100%;
+                    padding: 8px 0;
+                    font-size: 13px;
+                    background: rgba(0,0,0,0.06);
+                    border-radius: 6px;
+                    border: 1px solid #cccccc;
+                    cursor: pointer;
+                    color: #000000;
+                    margin-bottom: 10px;
+                ">
                     通道检测
                 </button>
 
                 <!-- 使用说明 -->
-                <button type="button" id="show-help-btn" style="width: 100%; padding: 8px 0; font-size: 13px; background: rgba(0,0,0,0.06); border-radius: 6px; border: 1px solid #cccccc; cursor: pointer; color: #000000; margin-bottom: 10px;">
+                <button type="button" id="show-help-btn" style="
+                    width: 100%;
+                    padding: 8px 0;
+                    font-size: 13px;
+                    background: rgba(0,0,0,0.06);
+                    border-radius: 6px;
+                    border: 1px solid #cccccc;
+                    cursor: pointer;
+                    color: #000000;
+                    margin-bottom: 10px;
+                ">
                     使用说明
                 </button>
 
@@ -186,21 +275,34 @@ function createExtensionPanel() {
         });
     }
 
-    // 悬浮图标开关
-    const miniToggle = document.getElementById('mini-icon-toggle');
-    if (miniToggle) {
-        miniToggle.addEventListener('change', (e) => {
+    // 最小化控制按钮
+    const miniToggleBtn = document.getElementById('mini-icon-toggle-btn');
+    if (miniToggleBtn) {
+        miniToggleBtn.addEventListener('click', () => {
             const settings = getExtensionSettings();
-            settings.miniIconVisible = e.target.checked;
+            settings.miniIconVisible = !settings.miniIconVisible;
             extension_settings[EXTENSION_NAME] = settings;
             saveExtensionSettings();
+
             const icon = document.getElementById('player-mini-icon');
-            const root = document.getElementById('player-root');
             if (icon) {
-                icon.style.display = e.target.checked ? 'flex' : 'none';
+                icon.style.display = settings.miniIconVisible ? 'flex' : 'none';
             }
-            if (root) {
-                root.style.display = e.target.checked ? 'flex' : 'none';
+
+            // 更新按钮文字
+            miniToggleBtn.textContent = settings.miniIconVisible ? '✅ 最小化图标已显示' : '❌ 最小化图标已隐藏';
+
+            // 如果隐藏图标，同时隐藏播放器
+            if (!settings.miniIconVisible) {
+                const root = document.getElementById('player-root');
+                if (root) root.style.display = 'none';
+            } else {
+                // 如果显示图标，恢复播放器状态
+                const root = document.getElementById('player-root');
+                if (root) {
+                    const saved = localStorage.getItem('player_visible');
+                    root.style.display = saved === 'false' ? 'none' : 'flex';
+                }
             }
         });
     }
