@@ -1,8 +1,5 @@
 /**
  * core.js - 音乐播放器核心逻辑
- * 版本: 1.0.6
- * 作者: hy.禾一
- * 说明：播放控制、状态管理、数据持久化
  */
 
 // ============================================================
@@ -55,10 +52,6 @@ const MusicPlayerCore = {
     },
     drag: { active: false, offX: 0, offY: 0 },
 
-    // ============================================================
-    // 初始化
-    // ============================================================
-
     init() {
         this.loadData();
         this.bindAudioEvents();
@@ -67,10 +60,6 @@ const MusicPlayerCore = {
         }
         console.log('🎵 播放器核心初始化完成');
     },
-
-    // ============================================================
-    // 数据持久化
-    // ============================================================
 
     loadData() {
         const EXTENSION_NAME = 'music_player_data';
@@ -146,10 +135,6 @@ const MusicPlayerCore = {
         }
         this.saveData();
     },
-
-    // ============================================================
-    // 播放控制
-    // ============================================================
 
     async play(i) {
         if (!this.playlist[i]) return;
@@ -243,10 +228,6 @@ const MusicPlayerCore = {
         this.play(n);
     },
 
-    // ============================================================
-    // 缓存功能
-    // ============================================================
-
     async cacheAllSongs() {
         if (this.state.isCaching) {
             if (typeof window.showStatus === 'function') {
@@ -315,10 +296,6 @@ const MusicPlayerCore = {
         }
     },
 
-    // ============================================================
-    // 歌词解析
-    // ============================================================
-
     parseLyrics(lrc) {
         const lines = lrc.split('\n');
         const result = [];
@@ -334,15 +311,15 @@ const MusicPlayerCore = {
         return result.sort((a, b) => a.time - b.time);
     },
 
-    // ============================================================
-    // 音频事件绑定
-    // ============================================================
-
     bindAudioEvents() {
         this.audio.onplay = () => {
             this.state.isPlaying = true;
             const playBtn = document.getElementById('btn-play');
             if (playBtn) playBtn.innerText = '❚❚';
+            const miniIcon = document.getElementById('player-mini-icon');
+            if (miniIcon) {
+                miniIcon.style.animation = 'spin 3s linear infinite';
+            }
             if (typeof window.updateView === 'function') {
                 window.updateView();
             }
@@ -352,6 +329,11 @@ const MusicPlayerCore = {
             this.state.isPlaying = false;
             const playBtn = document.getElementById('btn-play');
             if (playBtn) playBtn.innerText = '▶';
+            const miniIcon = document.getElementById('player-mini-icon');
+            if (miniIcon) {
+                miniIcon.style.animation = 'none';
+                miniIcon.style.transform = 'rotate(0deg)';
+            }
             if (typeof window.updateView === 'function') {
                 window.updateView();
             }
@@ -377,10 +359,6 @@ const MusicPlayerCore = {
         };
     }
 };
-
-// ============================================================
-// 暴露到全局（供 UI 和入口调用）
-// ============================================================
 
 window.MusicPlayerCore = MusicPlayerCore;
 window.defaultConfig = defaultConfig;
