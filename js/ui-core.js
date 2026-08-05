@@ -206,38 +206,36 @@ function createUI() {
     `;
     document.body.appendChild(root);
 
-    // ===== U2：最小化悬浮图标（强制显示版） =====
+    // ===== U2：最小化悬浮图标（相对于酒馆容器定位） =====
     const miniIcon = document.createElement('div');
     miniIcon.id = 'player-mini-icon';
     miniIcon.textContent = '🎵';
-    // 用最强制的方式设置样式，确保出现在屏幕中央
     miniIcon.style.cssText = `
-        position: fixed !important;
-        top: 50% !important;
-        left: 50% !important;
-        transform: translate(-50%, -50%) !important;
-        width: 60px !important;
-        height: 60px !important;
+        position: absolute !important;
+        bottom: 20px !important;
+        right: 20px !important;
+        width: 40px !important;
+        height: 40px !important;
         border-radius: 50% !important;
-        background: #ff0000 !important;
+        background: rgba(20,20,20,0.85) !important;
         color: #ffffff !important;
-        font-size: 30px !important;
+        font-size: 20px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        z-index: 99999999 !important;
-        border: 3px solid #00ff00 !important;
+        z-index: 9999 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
         cursor: pointer !important;
-        box-shadow: 0 0 30px rgba(255,0,0,0.8) !important;
-        opacity: 1 !important;
-        visibility: visible !important;
+        user-select: none !important;
     `;
-    document.body.appendChild(miniIcon);
 
-    // ===== 强制显示并通知 =====
-    console.log('🔥 强制创建最小化图标（测试版），应该在屏幕中央出现红色圆形');
+    // 挂载到酒馆主容器
+    const appContainer = document.getElementById('app') || document.body;
+    appContainer.appendChild(miniIcon);
 
-    // ===== 点击切换播放器（简化版） =====
+    console.log('✅ 最小化图标已创建（相对于酒馆容器定位）');
+
+    // ===== 点击切换播放器 =====
     miniIcon.addEventListener('click', () => {
         const u1 = document.getElementById('player-root');
         const u1a = document.getElementById('player-rhythm-icon');
@@ -256,6 +254,14 @@ function createUI() {
             }
         }
     });
+
+    // ===== 根据设置决定图标初始状态 =====
+    const settings = window.extension_settings?.['music_player'] || {};
+    if (settings.miniIconVisible !== false) {
+        miniIcon.style.display = 'flex';
+    } else {
+        miniIcon.style.display = 'none';
+    }
 }
 
 // ============================================================
