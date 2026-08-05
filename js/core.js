@@ -1,6 +1,6 @@
 /**
  * core.js - 音乐播放器核心逻辑
- * 说明：播放控制、状态管理、数据持久化
+ * 说明：播放控制、状态管理、数据持久化、自动检测
  */
 
 // ============================================================
@@ -63,6 +63,8 @@ const MusicPlayerCore = {
         if (typeof window.bindEvents === 'function') {
             window.bindEvents();
         }
+        // 启动时自动检测歌曲
+        this.autoCheckAllSongs();
         console.log('🎵 播放器核心初始化完成');
     },
 
@@ -152,14 +154,13 @@ const MusicPlayerCore = {
     async play(i) {
         if (!this.playlist[i]) return;
 
-        // 检查播放器是否被隐藏
         const settings = window.extension_settings?.['music_player'] || {};
         const isHidden = settings.playerHidden === true;
 
         this.index = i;
         const track = this.playlist[i];
 
-        if (track.neteaseId) {
+        if (track.neteaseId || track.source === 'qishui') {
             try {
                 const testAudio = new Audio();
                 testAudio.src = track.url;
@@ -167,6 +168,13 @@ const MusicPlayerCore = {
                 const canPlay = await new Promise((resolve) => {
                     testAudio.oncanplay = () => resolve(true);
                     testAudio.onerror = () => resolve(false);
+                    testAudio.onloadedmetadata = () => {
+                        if (testAudio.duration > 0) {
+                            resolve(true);
+                        } else {
+                            resolve(false);
+                        }
+                    };
                     setTimeout(() => resolve(false), 5000);
                 });
 
@@ -174,7 +182,18 @@ const MusicPlayerCore = {
                     if (typeof window.showStatus === 'function') {
                         window.showStatus('链接已失效，正在重新获取...', 'info');
                     }
-                    const newUrl = await window.refreshSongUrl(track.neteaseId);
+                    
+                    let newUrl = null;
+                    if (track.neteaseId) {
+                        if (typeof window.refreshSongUrl === 'function') {
+                            newUrl = await window.refreshSongUrl(track.neteaseId);
+                        }
+                    } else if (track.source === 'qishui' && track._originalLink) {
+                        if (typeof window.refreshQishuiSongUrl === 'function') {
+                            newUrl = await window.refreshQishuiSongUrl(track._originalLink);
+                        }
+                    }
+                    
                     if (newUrl) {
                         track.url = newUrl;
                         this.saveData();
@@ -183,8 +202,9 @@ const MusicPlayerCore = {
                         }
                     } else {
                         if (typeof window.showStatus === 'function') {
-                            window.showStatus('获取播放链接失败', 'error');
+                            window.showStatus('获取播放链接失败，已跳过', 'error');
                         }
+                        this.next();
                         return;
                     }
                 }
@@ -200,7 +220,6 @@ const MusicPlayerCore = {
         this.state.lyrics = track.lyrics ? this.parseLyrics(track.lyrics) : [];
         this.state.currentLyricIndex = -1;
 
-        // 只有未隐藏时才更新 UI
         if (!isHidden) {
             if (typeof window.updateView === 'function') {
                 window.updateView();
@@ -349,13 +368,11 @@ const MusicPlayerCore = {
             const playBtn = document.getElementById('btn-play');
             if (playBtn) playBtn.innerText = '❚❚';
 
-            // 音乐图标旋转
             const miniIcon = document.getElementById('player-mini-icon');
             if (miniIcon) {
                 miniIcon.style.animation = 'spin 3s linear infinite';
             }
 
-            // 只有未隐藏时才更新 UI
             const settings = window.extension_settings?.['music_player'] || {};
             if (!settings.playerHidden && typeof window.updateView === 'function') {
                 window.updateView();
@@ -367,7 +384,6 @@ const MusicPlayerCore = {
             const playBtn = document.getElementById('btn-play');
             if (playBtn) playBtn.innerText = '▶';
 
-            // 音乐图标停止旋转，复位
             const miniIcon = document.getElementById('player-mini-icon');
             if (miniIcon) {
                 miniIcon.style.animation = 'none';
@@ -397,12 +413,97 @@ const MusicPlayerCore = {
                 window.updateLyrics();
             }
         };
+    },
+
+    // ============================================================
+    // 自动检测所有歌曲
+    // ============================================================
+
+    async autoCheckAllSongs() {
+        if (this.playlist.length === 0) {
+            console.log('📭 歌单为空，跳过检测');
+            return;
+        }
+
+        const needCheck = this.playlist.filter(t => t.neteaseId || t.source === 'qishui');
+        if (needCheck.length === 0) {
+            console.log('✅ 没有需要检测的歌曲');
+            return;
+        }
+
+        console.log(`🔍 开始自动检测 ${needCheck.length} 首歌曲...`);
+        let fixedCount = 0;
+
+        for (let i = 0; i < this.playlist.length; i++) {
+            const track = this.playlist[i];
+
+            if (!track.neteaseId && track.source !== 'qishui') continue;
+
+            try {
+                const testAudio = new Audio();
+                testAudio.src = track.url;
+
+                const canPlay = await new Promise((resolve) => {
+                    testAudio.oncanplay = () => resolve(true);
+                    testAudio.onerror = () => resolve(false);
+                    testAudio.onloadedmetadata = () => {
+                        if (testAudio.duration > 0) {
+                            resolve(true);
+                        } else {
+                            resolve(false);
+                        }
+                    };
+                    setTimeout(() => resolve(false), 5000);
+                });
+
+                if (!canPlay) {
+                    console.warn(`⚠️ 检测到失效歌曲: ${track.title} - ${track.artist}`);
+
+                    let newUrl = null;
+                    if (track.neteaseId) {
+                        if (typeof window.refreshSongUrl === 'function') {
+                            newUrl = await window.refreshSongUrl(track.neteaseId);
+                        }
+                    } else if (track.source === 'qishui' && track._originalLink) {
+                        if (typeof window.refreshQishuiSongUrl === 'function') {
+                            newUrl = await window.refreshQishuiSongUrl(track._originalLink);
+                        }
+                    }
+
+                    if (newUrl) {
+                        track.url = newUrl;
+                        fixedCount++;
+                        console.log(`✅ 已修复: ${track.title}`);
+                        this.saveData();
+                    } else {
+                        console.warn(`❌ 修复失败: ${track.title}`);
+                    }
+                }
+            } catch (error) {
+                console.warn(`⚠️ 检测异常: ${track.title}`, error);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+
+        if (fixedCount > 0) {
+            console.log(`✅ 自动检测完成，共修复 ${fixedCount} 首歌曲`);
+            if (typeof window.showStatus === 'function') {
+                window.showStatus(`✅ 自动修复 ${fixedCount} 首失效歌曲`, 'success');
+            }
+            if (typeof window.renderList === 'function') {
+                window.renderList();
+            }
+        } else {
+            console.log('✅ 自动检测完成，所有歌曲正常');
+        }
     }
 };
 
 // ============================================================
-// 暴露到全局（供 UI 和入口调用）
+// 暴露到全局
 // ============================================================
 
 window.MusicPlayerCore = MusicPlayerCore;
 window.defaultConfig = defaultConfig;
+window.autoCheckAllSongs = MusicPlayerCore.autoCheckAllSongs.bind(MusicPlayerCore);
