@@ -280,6 +280,9 @@ function createUI() {
         cursor: grab !important;
         user-select: none !important;
         transition: transform 0.2s ease !important;
+        font-size: 26px !important;
+        font-weight: bold !important;
+        color: #000000 !important;
     `;
 
     // 悬停效果
@@ -294,7 +297,7 @@ function createUI() {
     const appContainer = document.getElementById('app') || document.body;
     appContainer.appendChild(miniIcon);
 
-    console.log('✅ 最小化图标已创建（黑边白底，颜色跟随播放器）');
+    console.log('✅ 最小化图标已创建（白底，边框和音符跟随播放器）');
 
     // ===== U3 交互：拖拽 + 点击切换 =====
     let drag = { active: false, offX: 0, offY: 0 };
@@ -526,13 +529,13 @@ function updateView() {
 
     updateSettingsPanel();
 
-    // ===== 同步最小化图标与播放器整体效果 =====
+    // ===== 同步最小化图标颜色（边框和音符跟随播放器，背景保持白色） =====
     const miniIcon = document.getElementById('player-mini-icon');
     if (miniIcon && island) {
         // 复制灵动岛的类名（继承动画效果）
         miniIcon.className = island.className;
         
-        // 同步颜色
+        // 同步边框和文字颜色
         const mode = core.state.rgbMode;
         let color = cfg.borderColor;
         if (mode === 1 || mode === 2) {
@@ -540,7 +543,7 @@ function updateView() {
         }
         miniIcon.style.borderColor = color;
         miniIcon.style.color = color;
-        // 保持白色背景
+        // 背景始终保持白色
         miniIcon.style.background = '#ffffff';
     }
 }
