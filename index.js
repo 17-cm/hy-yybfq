@@ -30,14 +30,14 @@ async function loadAllModules() {
     // basePath 改为根目录
     const basePath = `/scripts/extensions/third-party/${EXTENSION_FOLDER}/`;
     try {
-        await loadScript(basePath + 'JS/utils.js');
-        await loadScript(basePath + 'API/wyy.js');
-        await loadScript(basePath + 'API/qs.js');
-        await loadScript(basePath + 'JS/core.js');
-        await loadScript(basePath + 'JS/ui-core.js');
-        await loadScript(basePath + 'JS/ui-helpers.js');
-        await loadScript(basePath + 'JS/ui-playlist.js');
-        await loadScript(basePath + 'JS/ui-events.js');
+        await loadScript(basePath + 'js/utils.js');
+        await loadScript(basePath + 'api/wyy.js');
+        await loadScript(basePath + 'api/qs.js');
+        await loadScript(basePath + 'js/core.js');
+        await loadScript(basePath + 'js/ui-core.js');
+        await loadScript(basePath + 'js/ui-helpers.js');
+        await loadScript(basePath + 'js/ui-playlist.js');
+        await loadScript(basePath + 'js/ui-events.js');
         initPlayer();
     } catch (error) {
         console.error('❌ 模块加载失败:', error);
