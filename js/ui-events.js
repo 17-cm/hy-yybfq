@@ -54,11 +54,12 @@ function toggleRhythmMode() {
 }
 
 // ============================================================
-// 显示/隐藏 UI
+// 显示/隐藏 UI（强制检查隐藏状态）
 // ============================================================
 
 function showUI() {
-    if (window.extension_settings?.['music_player']?.playerHidden) return;
+    const settings = window.extension_settings?.['music_player'] || {};
+    if (settings.playerHidden) return;
 
     const core = window.MusicPlayerCore;
     if (!core) return;
@@ -78,6 +79,9 @@ function showUI() {
 }
 
 function hideUI() {
+    const settings = window.extension_settings?.['music_player'] || {};
+    if (settings.playerHidden) return;
+
     const root = document.getElementById('player-root');
     const rhythmIcon = document.getElementById('player-rhythm-icon');
     if (root) root.style.display = 'none';
@@ -101,12 +105,11 @@ function bindEvents() {
     const leftZone = rhythmIcon?.querySelector('.rhythm-left-zone');
     const rightZone = rhythmIcon?.querySelector('.rhythm-right-zone');
 
-    // ===== 播放器拖拽（整个面板，排除可滚动区域和纯享模式） =====
+    // ===== 播放器拖拽（整个面板） =====
     if (root) {
         const handlePlayerDrag = (e) => {
             const target = e.target;
 
-            // 忽略按钮、输入框、封面等交互元素
             if (target.closest('button') || 
                 target.closest('input') || 
                 target.closest('.player-cover') ||
@@ -115,7 +118,6 @@ function bindEvents() {
                 return;
             }
 
-            // 忽略可滚动容器内的操作（菜单、列表等）
             if (target.closest('.list-box') || 
                 target.closest('.player-panel') || 
                 target.closest('.history-list') || 
