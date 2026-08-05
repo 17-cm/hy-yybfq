@@ -13,11 +13,6 @@ const QISHUI_BASE = 'https://api.pearapi.ai/api/qishui_music';
 // 核心函数
 // ==========================================
 
-/**
- * 解析汽水音乐单曲
- * @param {string} link - 汽水音乐分享链接
- * @returns {Promise<{title, artist, url, lyrics, cover, neteaseId, _originalLink, source}>}
- */
 async function fetchQishuiSongInfo(link) {
     try {
         const url = link.trim();
@@ -50,7 +45,7 @@ async function fetchQishuiSongInfo(link) {
             duration: '0:00',
             neteaseId: songId,
             source: 'qishui',
-            _originalLink: url  // 存分享链接，不是直链
+            _originalLink: url
         };
     } catch (error) {
         console.error('汽水音乐解析失败:', error);
@@ -58,12 +53,6 @@ async function fetchQishuiSongInfo(link) {
     }
 }
 
-/**
- * 刷新播放链接（带超时和自动重试）
- * @param {string} link - 汽水音乐分享链接
- * @param {number} maxRetries - 最大重试次数
- * @returns {Promise<string|null>}
- */
 async function refreshQishuiSongUrl(link, maxRetries = 3) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
@@ -77,8 +66,6 @@ async function refreshQishuiSongUrl(link, maxRetries = 3) {
             });
             clearTimeout(timeout);
             
-            console.log(`📡 响应状态: ${response.status}`);
-            
             if (!response.ok) continue;
             
             const data = await response.json();
@@ -88,10 +75,10 @@ async function refreshQishuiSongUrl(link, maxRetries = 3) {
                 continue;
             }
             
-            const url = data.data?.url || null;
-            if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+            const newUrl = data.data?.url || null;
+            if (newUrl && (newUrl.startsWith('http://') || newUrl.startsWith('https://'))) {
                 console.log(`✅ 汽水链接刷新成功 (尝试 ${attempt + 1})`);
-                return url;
+                return newUrl;
             }
         } catch (e) {
             if (e.name === 'AbortError') {
@@ -110,9 +97,6 @@ async function refreshQishuiSongUrl(link, maxRetries = 3) {
     return null;
 }
 
-/**
- * 汽水音乐歌单解析（暂不支持）
- */
 async function fetchQishuiPlaylist(link) {
     throw new Error('汽水音乐歌单解析暂不支持，请使用单曲链接');
 }
