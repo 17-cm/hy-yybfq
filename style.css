@@ -1,16 +1,12 @@
 /* ===================================================================
- * 音乐播放器样式文件
- * 版本: 1.0.5
- * 作者: hy.禾一
+ * style.css - 音乐播放器样式
  * =================================================================== */
 
-/* ===== 动画定义 ===== */
 @keyframes wave { 
     0%, 100% { height: 2px; } 
     50% { height: var(--h); } 
 }
 
-/* 单色呼吸效果 - 一闪一闪 */
 @keyframes single-breathe {
     0%, 100% { 
         opacity: 0.5; 
@@ -22,7 +18,6 @@
     }
 }
 
-/* 幻彩呼吸效果 - 变幻颜色的呼吸感 */
 @keyframes rainbow-breathe {
     0% { 
         background-color: hsl(0, 70%, 75%); 
@@ -81,7 +76,6 @@
     }
 }
 
-/* 律动条和星星的颜色闪烁变换 */
 @keyframes color-flash-cycle {
     0%, 100% { color: hsl(350, 80%, 80%); text-shadow: 0 0 10px hsl(350, 80%, 80%); }
     16% { color: hsl(40, 80%, 80%); text-shadow: 0 0 10px hsl(40, 80%, 80%); }
@@ -91,7 +85,6 @@
     83% { color: hsl(320, 80%, 80%); text-shadow: 0 0 10px hsl(320, 80%, 80%); }
 }
 
-/* 律动条背景颜色闪烁变换 */
 @keyframes bar-color-flash {
     0%, 100% { background: hsl(350, 80%, 80%); box-shadow: 0 0 6px hsl(350, 80%, 80%); }
     16% { background: hsl(40, 80%, 80%); box-shadow: 0 0 6px hsl(40, 80%, 80%); }
@@ -101,7 +94,6 @@
     83% { background: hsl(320, 80%, 80%); box-shadow: 0 0 6px hsl(320, 80%, 80%); }
 }
 
-/* 星星闪烁动画 */
 @keyframes star-twinkle-left {
     0%, 100% { opacity: 0.3; transform: scale(0.6); }
     30% { opacity: 1; transform: scale(1.2); }
@@ -117,6 +109,11 @@
 @keyframes rainbow-flow {
     0% { background-position: 0% 50%; }
     100% { background-position: 200% 50%; }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 /* ===== 缓存进度弹窗 ===== */
@@ -378,7 +375,6 @@
     background: transparent;
 }
 
-/* 律动模式星星 */
 .rhythm-star {
     position: absolute;
     top: -5px;
@@ -398,13 +394,11 @@
     animation: star-twinkle-right 2s ease-in-out infinite;
 }
 
-/* 星星单色RGB效果 */
 .player-rhythm-icon.rgb-single .rhythm-star {
     color: var(--rgb-single);
     text-shadow: 0 0 10px var(--rgb-single);
 }
 
-/* 星星幻彩RGB效果 */
 .player-rhythm-icon.rgb-rainbow .rhythm-star {
     animation: star-twinkle-left 1.5s ease-in-out infinite, color-flash-cycle 3s linear infinite;
 }
@@ -451,7 +445,6 @@
     box-sizing: border-box;
 }
 
-/* 律动条默认样式 */
 .rhythm-bar { 
     width: 3px; 
     height: 2px; 
@@ -477,7 +470,6 @@
     animation-delay: var(--d); 
 }
 
-/* 律动条单色模式 */
 .player-rhythm-icon.rgb-single .rhythm-bar { 
     background: linear-gradient(to top, 
         var(--rgb-single),
@@ -491,13 +483,11 @@
     box-shadow: 0 0 5px var(--rgb-single); 
 }
 
-/* 律动条幻彩模式 */
 .player-rhythm-icon.rgb-rainbow .rhythm-bar { 
     animation: wave var(--s) infinite ease-in-out alternate, bar-color-flash 3s linear infinite;
     animation-delay: var(--d), 0s;
 }
 
-/* 律动条幻彩模式 - 底部线保持流动渐变 */
 .player-rhythm-icon.rgb-rainbow .rhythm-base-line { 
     background: linear-gradient(90deg,
         hsl(0, 70%, 75%), hsl(60, 70%, 75%), hsl(120, 70%, 75%),
@@ -528,7 +518,6 @@
 
 #player-root.expanded { height: 520px !important; }
 
-/* RGB边框 - 单色模式：呼吸闪烁效果 */
 .player-rgb-border { 
     position: absolute; 
     inset: 0; 
@@ -545,7 +534,6 @@
     animation: single-breathe 2s ease-in-out infinite !important;
 }
 
-/* RGB边框 - 幻彩模式：变幻颜色呼吸效果 */
 .player-rgb-border.mode-rainbow { 
     animation: rainbow-breathe 6s linear infinite !important;
 }
@@ -568,7 +556,6 @@
     -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
 
-/* 灵动岛 */
 .player-island { 
     width: 70px; 
     height: 18px; 
@@ -585,13 +572,11 @@
     overflow: hidden;
 }
 
-/* 灵动岛单色呼吸效果 */
 .player-island.rgb-single-breathe {
     background: var(--rgb-single) !important;
     animation: single-breathe 2s ease-in-out infinite !important;
 }
 
-/* 灵动岛幻彩呼吸效果 */
 .player-island.rgb-rainbow-breathe {
     animation: rainbow-breathe 6s linear infinite !important;
 }
@@ -719,7 +704,7 @@
 
 .player-right button:hover { opacity: 1; }
 
-/* 纯享模式 */
+/* ===== 纯享模式 ===== */
 .player-pure-mode { 
     display: none; 
     width: 100%; 
@@ -751,7 +736,6 @@
     line-height: 1.5;
 }
 
-/* 歌词渐变效果 */
 .pure-lyric-line.active {
     font-size: 22px;
     font-weight: bold;
@@ -775,7 +759,7 @@
 
 .pure-lyric-line.passed { opacity: 0.25; }
 
-/* 面板 */
+/* ===== 面板 ===== */
 .player-panel { 
     flex: 1; 
     display: none; 
@@ -844,7 +828,6 @@
     margin-top: 10px;
 }
 
-/* 统一的操作按钮样式 */
 .panel-action-btn {
     flex: 1;
     padding: 12px;
@@ -906,7 +889,7 @@ input[type=checkbox] {
     cursor: pointer; 
 }
 
-/* 播放列表 */
+/* ===== 播放列表 ===== */
 .list-box { max-height: 280px; overflow-y: auto; }
 
 .list-box::-webkit-scrollbar { width: 4px; }
@@ -948,7 +931,7 @@ input[type=checkbox] {
     font-size: 18px; 
 }
 
-/* 导入历史 */
+/* ===== 导入历史 ===== */
 .history-list {
     max-height: 300px;
     overflow-y: auto;
